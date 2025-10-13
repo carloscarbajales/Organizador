@@ -87,7 +87,7 @@
         <aside class="w-full lg:w-1/3 xl:w-1/4 p-6 bg-white border-r border-gray-200 flex flex-col space-y-6 overflow-y-auto">
             <header>
                 <h1 class="text-2xl font-bold text-blue-700">Gestor de Tareas</h1>
-                <p class="text-gray-500">Farmacia Trébol</p>
+                <p class="text-gray-500">Farmacia Saludable</p>
             </header>
 
             <button id="addTaskBtn" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-blue-700 transition-colors duration-300">
@@ -179,6 +179,7 @@
             <form id="task-form">
                 <input type="hidden" id="task-id">
                 <input type="hidden" id="task-status">
+                <input type="hidden" id="task-instance-date">
                 
                 <div class="mb-4">
                     <label for="task-title" class="block text-sm font-medium text-gray-700 mb-1">Título</label>
@@ -197,12 +198,18 @@
                         </select>
                     </div>
                     <div id="recurrence-container" class="hidden">
-                        <label for="task-recurrence-day" class="block text-sm font-medium text-gray-700 mb-1">Repetir el</label>
-                        <select id="task-recurrence-day" class="w-full border-gray-300 rounded-lg shadow-sm">
-                            <option value="1">Lunes</option><option value="2">Martes</option><option value="3">Miércoles</option>
-                            <option value="4">Jueves</option><option value="5">Viernes</option><option value="6">Sábado</option>
-                            <option value="0">Domingo</option>
-                        </select>
+                         <fieldset>
+                            <legend class="block text-sm font-medium text-gray-700 mb-2">Repetir los días</legend>
+                            <div id="task-recurrence-days" class="grid grid-cols-3 sm:grid-cols-4 gap-2 text-sm">
+                                <label class="flex items-center space-x-2 p-2 border rounded-md"><input type="checkbox" value="1"><span>Lun</span></label>
+                                <label class="flex items-center space-x-2 p-2 border rounded-md"><input type="checkbox" value="2"><span>Mar</span></label>
+                                <label class="flex items-center space-x-2 p-2 border rounded-md"><input type="checkbox" value="3"><span>Mié</span></label>
+                                <label class="flex items-center space-x-2 p-2 border rounded-md"><input type="checkbox" value="4"><span>Jue</span></label>
+                                <label class="flex items-center space-x-2 p-2 border rounded-md"><input type="checkbox" value="5"><span>Vie</span></label>
+                                <label class="flex items-center space-x-2 p-2 border rounded-md"><input type="checkbox" value="6"><span>Sáb</span></label>
+                                <label class="flex items-center space-x-2 p-2 border rounded-md"><input type="checkbox" value="0"><span>Dom</span></label>
+                            </div>
+                        </fieldset>
                     </div>
                 </div>
 
@@ -265,12 +272,21 @@
         // --- ESTADO Y DATOS ---
         let currentDate = new Date();
         let tasks = JSON.parse(localStorage.getItem('pharmacyTasks')) || [
-             { id: 1, title: 'Revisión Caducidades', type: 'recurrente', dueDate: null, startDate: null, assignedTo: 2, estimatedTime: 30, status: 'pendiente', recurrence: { type: 'weekly', day: 1 } },
-             { id: 2, title: 'Pedido Semanal', type: 'inaplazable', dueDate: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split('T')[0], startDate: null, assignedTo: 1, estimatedTime: 90, status: 'completada', recurrence: null, completionDate: new Date().toISOString().split('T')[0] },
-             { id: 3, title: 'Limpieza neveras', type: 'flexible', dueDate: new Date(new Date().setDate(new Date().getDate() + 8)).toISOString().split('T')[0], startDate: new Date(new Date().setDate(new Date().getDate() + 3)).toISOString().split('T')[0], assignedTo: 3, estimatedTime: 45, status: 'pendiente', recurrence: null },
-             { id: 4, title: 'Inventario Anual', type: 'anual', dueDate: '2025-10-31', startDate: '2025-10-25', assignedTo: 1, estimatedTime: 240, status: 'pendiente', recurrence: null }
+             { id: 1, title: 'Revisión Caducidades', type: 'recurrente', dueDate: null, startDate: null, assignedTo: 2, estimatedTime: 30, status: 'pendiente', recurrence: { days: ["1","3","5"] }, completedDates: [] },
+             { id: 2, title: 'Pedido Semanal', type: 'inaplazable', dueDate: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split('T')[0], startDate: null, assignedTo: 1, estimatedTime: 90, status: 'completada', recurrence: null, completionDate: new Date().toISOString().split('T')[0], completedDates: [] },
+             { id: 3, title: 'Limpieza neveras', type: 'flexible', dueDate: new Date(new Date().setDate(new Date().getDate() + 8)).toISOString().split('T')[0], startDate: new Date(new Date().setDate(new Date().getDate() + 3)).toISOString().split('T')[0], assignedTo: 3, estimatedTime: 45, status: 'pendiente', recurrence: null, completedDates: [] },
+             { id: 4, title: 'Inventario Anual', type: 'anual', dueDate: '2025-10-31', startDate: '2025-10-25', assignedTo: 1, estimatedTime: 240, status: 'pendiente', recurrence: null, completedDates: [] }
         ];
         
+        // Data migration for older versions
+        tasks.forEach(t => {
+            if (!t.completedDates) t.completedDates = [];
+            if (t.recurrence && t.recurrence.day && !t.recurrence.days) {
+                t.recurrence.days = [t.recurrence.day];
+                delete t.recurrence.day;
+            }
+        });
+
         let employees = JSON.parse(localStorage.getItem('pharmacyEmployees')) || [ 
             { id: 1, name: 'Ana García' }, 
             { id: 2, name: 'Luis Pérez' }, 
@@ -323,7 +339,7 @@
         // --- FUNCIONES AUXILIARES DE COLOR ---
         const getEmployeeColor = (employeeId) => {
             const employeeIndex = employees.findIndex(e => e.id === employeeId);
-            if (employeeIndex === -1) {
+            if (employeeIndex === -1 || employeeId === null) {
                 return defaultEmployeeColor;
             }
             return employeeColorPalette[employeeIndex % employeeColorPalette.length];
@@ -351,6 +367,7 @@
 
             for (let day = 1; day <= daysInMonth; day++) {
                 const date = new Date(year, month, day);
+                const dateString = date.toISOString().split('T')[0];
                 const dayEl = document.createElement('div');
                 dayEl.className = 'border border-gray-200 bg-white rounded-lg p-2 flex flex-col min-h-[120px]';
                 
@@ -368,20 +385,27 @@
                     const employeeColor = getEmployeeColor(task.assignedTo);
                     const typeBorderColor = taskTypeBorders[task.type] || 'border-gray-400';
                     
+                    let isCompletedToday = false;
+                    if (task.type === 'recurrente') {
+                        isCompletedToday = task.completedDates.includes(dateString);
+                    } else {
+                        isCompletedToday = task.status === 'completada';
+                    }
+
                     taskEl.className = `taskEl text-xs p-1.5 rounded-md cursor-pointer border-l-4 font-medium ${employeeColor.bg} ${employeeColor.text} ${typeBorderColor}`;
 
-                    if (task.status === 'completada') {
+                    if (isCompletedToday) {
                         taskEl.classList.add('opacity-60');
                         taskEl.innerHTML = `<span class="font-semibold line-through">${task.title}</span>`;
                     } else {
                         taskEl.innerHTML = `<span class="font-semibold">${task.title}</span>`;
                     }
-                    taskEl.addEventListener('click', (e) => { e.stopPropagation(); openModal(task); });
+                    taskEl.addEventListener('click', (e) => { e.stopPropagation(); openModal(task, dateString); });
                     tasksContainer.appendChild(taskEl);
                 });
 
                 dayEl.appendChild(tasksContainer);
-                dayEl.addEventListener('click', () => openModal(null, date.toISOString().split('T')[0]));
+                dayEl.addEventListener('click', () => openModal(null, dateString));
                 calendarGrid.appendChild(dayEl);
             }
         };
@@ -390,8 +414,8 @@
             const dateString = date.toISOString().split('T')[0];
             const dayOfWeek = date.getDay();
             return taskList.filter(task => {
-                if (task.type === 'recurrente' && task.recurrence) {
-                    return task.recurrence.day == dayOfWeek && new Date(date).getMonth() === currentDate.getMonth();
+                if (task.type === 'recurrente' && task.recurrence && task.recurrence.days) {
+                    return task.recurrence.days.includes(String(dayOfWeek)) && new Date(date).getMonth() === currentDate.getMonth();
                 }
                 if (task.type === 'flexible' || task.type === 'anual') {
                     return dateString >= task.startDate && dateString <= task.dueDate;
@@ -432,14 +456,39 @@
                 assignedToSelect.innerHTML += `<option value="${emp.id}">${emp.name}</option>`;
                 filterEmployeeSelect.innerHTML += `<option value="${emp.id}">${emp.name}</option>`;
             });
-            filterEmployeeSelect.value = filters.employee; // Mantener el filtro seleccionado
+            filterEmployeeSelect.value = filters.employee;
 
             // Renderizar el reporte
             employeeReportEl.innerHTML = '';
             employees.forEach(employee => {
-                const employeeTasks = tasks.filter(task => task.assignedTo === employee.id && ( (task.dueDate && new Date(task.dueDate).getMonth() === currentDate.getMonth()) || (task.startDate && new Date(task.startDate).getMonth() === currentDate.getMonth()) || task.type === 'recurrente' ));
-                const totalTime = employeeTasks.reduce((sum, task) => sum + (task.estimatedTime || 0), 0);
-                const completedTime = employeeTasks.filter(t => t.status === 'completada').reduce((sum, task) => sum + (task.estimatedTime || 0), 0);
+                let totalTime = 0;
+                let completedTime = 0;
+                const month = currentDate.getMonth();
+                const year = currentDate.getFullYear();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+                tasks.filter(t => t.assignedTo === employee.id).forEach(task => {
+                    if (task.type === 'recurrente' && task.recurrence && task.recurrence.days) {
+                        for (let day = 1; day <= daysInMonth; day++) {
+                            const date = new Date(year, month, day);
+                            if (task.recurrence.days.includes(String(date.getDay()))) {
+                                totalTime += task.estimatedTime;
+                                const dateString = date.toISOString().split('T')[0];
+                                if (task.completedDates.includes(dateString)) {
+                                    completedTime += task.estimatedTime;
+                                }
+                            }
+                        }
+                    } else {
+                         const taskMonth = new Date(task.dueDate).getMonth();
+                         if(taskMonth === month) {
+                            totalTime += task.estimatedTime;
+                            if(task.status === 'completada'){
+                                completedTime += task.estimatedTime;
+                            }
+                         }
+                    }
+                });
 
                 employeeReportEl.innerHTML += `
                     <div class="p-3 bg-gray-100 rounded-lg">
@@ -460,7 +509,7 @@
             if (name) {
                 employees.push({ id: Date.now(), name: name });
                 saveEmployees();
-                renderEmployeeUI();
+                renderAll();
                 newEmployeeNameInput.value = '';
             }
         };
@@ -480,10 +529,12 @@
         };
 
         // --- MODALES ---
-        const openModal = (task = null, date = null) => {
+        const openModal = (task = null, dateString = null) => {
             const modalContent = taskModal.querySelector('div');
             taskForm.reset();
-            ['task-id', 'task-status'].forEach(id => document.getElementById(id).value = '');
+            document.querySelectorAll('#task-recurrence-days input').forEach(cb => cb.checked = false);
+            ['task-id', 'task-status', 'task-instance-date'].forEach(id => document.getElementById(id).value = '');
+            if(dateString) document.getElementById('task-instance-date').value = dateString;
             
             if (task) { // Editar
                 document.getElementById('modal-title').textContent = 'Editar Tarea';
@@ -491,20 +542,33 @@
                     const el = document.getElementById(`task-${key.toLowerCase().replace('estimatedtime', 'time').replace('assignedto', 'assigned-to')}`);
                     if (el) el.value = task[key] || '';
                 });
-                if (task.recurrence) document.getElementById('task-recurrence-day').value = task.recurrence.day;
+                if (task.recurrence && task.recurrence.days) {
+                    task.recurrence.days.forEach(day => {
+                        const cb = document.querySelector(`#task-recurrence-days input[value="${day}"]`);
+                        if (cb) cb.checked = true;
+                    });
+                }
                 
                 document.getElementById('delete-task-btn').classList.remove('hidden');
                 const toggleBtn = document.getElementById('toggle-status-btn');
                 toggleBtn.classList.remove('hidden');
-                toggleBtn.textContent = task.status === 'completada' ? 'Marcar Pendiente' : 'Marcar Completada';
-                toggleBtn.className = `px-4 py-2 rounded-lg font-medium ${task.status === 'completada' ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200' : 'bg-green-100 text-green-800 hover:bg-green-200'}`;
+
+                let isCompletedToday = false;
+                if(task.type === 'recurrente') {
+                    isCompletedToday = dateString && task.completedDates.includes(dateString);
+                } else {
+                    isCompletedToday = task.status === 'completada';
+                }
+
+                toggleBtn.textContent = isCompletedToday ? 'Marcar Pendiente' : 'Marcar Completada';
+                toggleBtn.className = `px-4 py-2 rounded-lg font-medium ${isCompletedToday ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200' : 'bg-green-100 text-green-800 hover:bg-green-200'}`;
 
             } else { // Crear
                 document.getElementById('modal-title').textContent = 'Nueva Tarea';
                 document.getElementById('task-status').value = 'pendiente';
-                if(date) {
-                    document.getElementById('task-start-date').value = date;
-                    document.getElementById('task-due-date').value = date;
+                if(dateString) {
+                    document.getElementById('task-start-date').value = dateString;
+                    document.getElementById('task-due-date').value = dateString;
                 }
                 document.getElementById('delete-task-btn').classList.add('hidden');
                 document.getElementById('toggle-status-btn').classList.add('hidden');
@@ -536,8 +600,29 @@
 
         const openCompletedModal = () => {
             const modalContent = completedTasksModal.querySelector('div');
-            const completed = tasks.filter(t => t.status === 'completada').sort((a, b) => new Date(b.completionDate || b.dueDate) - new Date(a.completionDate || a.dueDate));
-            if(completed.length === 0) {
+            let allCompletedInstances = [];
+
+            tasks.forEach(task => {
+                if (task.status === 'completada' && task.type !== 'recurrente') {
+                    allCompletedInstances.push({
+                        title: task.title,
+                        assignedTo: getEmployeeNameById(task.assignedTo),
+                        completionDate: new Date(task.completionDate || task.dueDate)
+                    });
+                } else if (task.type === 'recurrente') {
+                    task.completedDates.forEach(dateStr => {
+                        allCompletedInstances.push({
+                            title: task.title,
+                            assignedTo: getEmployeeNameById(task.assignedTo),
+                            completionDate: new Date(dateStr)
+                        });
+                    });
+                }
+            });
+
+            allCompletedInstances.sort((a, b) => b.completionDate - a.completionDate);
+
+            if(allCompletedInstances.length === 0) {
                 completedTasksListEl.innerHTML = '<p class="text-gray-500 text-center">No hay tareas completadas.</p>';
             } else {
                 completedTasksListEl.innerHTML = `
@@ -546,11 +631,11 @@
                             <tr><th class="p-2">Tarea</th><th class="p-2">Completada por</th><th class="p-2">Fecha de Finalización</th></tr>
                         </thead>
                         <tbody>
-                        ${completed.map(task => `
+                        ${allCompletedInstances.map(instance => `
                             <tr class="border-b">
-                                <td class="p-2 font-medium">${task.title}</td>
-                                <td class="p-2">${getEmployeeNameById(task.assignedTo)}</td>
-                                <td class="p-2">${new Date(task.completionDate || task.dueDate).toLocaleDateString()}</td>
+                                <td class="p-2 font-medium">${instance.title}</td>
+                                <td class="p-2">${instance.assignedTo}</td>
+                                <td class="p-2">${instance.completionDate.toLocaleDateString()}</td>
                             </tr>
                         `).join('')}
                         </tbody>
@@ -615,6 +700,13 @@
                 e.preventDefault();
                 const id = parseInt(document.getElementById('task-id').value);
                 const type = document.getElementById('task-type').value;
+                
+                let recurrence = null;
+                if (type === 'recurrente') {
+                    const days = Array.from(document.querySelectorAll('#task-recurrence-days input:checked')).map(cb => cb.value);
+                    recurrence = { days: days };
+                }
+
                 const taskData = {
                     id: id || Date.now(),
                     title: document.getElementById('task-title').value,
@@ -622,14 +714,11 @@
                     dueDate: document.getElementById('task-due-date').value,
                     startDate: type === 'flexible' || type === 'anual' ? document.getElementById('task-start-date').value : document.getElementById('task-due-date').value,
                     assignedTo: parseInt(document.getElementById('task-assigned-to').value) || null,
-                    estimatedTime: parseInt(document.getElementById('task-time').value),
+                    estimatedTime: parseInt(document.getElementById('task-time').value) || 0,
                     status: document.getElementById('task-status').value || 'pendiente',
-                    recurrence: type === 'recurrente' ? { type: 'weekly', day: document.getElementById('task-recurrence-day').value } : null
+                    recurrence: recurrence,
+                    completedDates: id ? tasks.find(t=>t.id===id).completedDates : []
                 };
-                
-                const existingTask = tasks.find(t => t.id === taskData.id);
-                if(existingTask) taskData.completionDate = existingTask.completionDate;
-
 
                 if (id) tasks[tasks.findIndex(t => t.id === id)] = taskData;
                 else tasks.push(taskData);
@@ -648,18 +737,30 @@
             
             document.getElementById('toggle-status-btn').addEventListener('click', () => {
                 const id = parseInt(document.getElementById('task-id').value);
+                const instanceDate = document.getElementById('task-instance-date').value;
                 const task = tasks.find(t => t.id === id);
-                if(task) {
-                    if (task.status === 'pendiente') {
-                        task.status = 'completada';
-                        task.completionDate = new Date().toISOString().split('T')[0];
+
+                if (task) {
+                    if (task.type === 'recurrente') {
+                        if (!instanceDate) return;
+                        const dateIndex = task.completedDates.indexOf(instanceDate);
+                        if (dateIndex > -1) {
+                            task.completedDates.splice(dateIndex, 1);
+                        } else {
+                            task.completedDates.push(instanceDate);
+                        }
                     } else {
-                        task.status = 'pendiente';
-                        task.completionDate = null;
+                         if (task.status === 'pendiente') {
+                            task.status = 'completada';
+                            task.completionDate = new Date().toISOString().split('T')[0];
+                        } else {
+                            task.status = 'pendiente';
+                            task.completionDate = null;
+                        }
                     }
                     saveTasks(); 
                     renderAll(); 
-                    openModal(task); 
+                    openModal(task, instanceDate); 
                 }
             });
 
