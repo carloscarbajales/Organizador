@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Tareas de Farmacia (Avanzado)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        .calendar-grid {
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+        }
+        .toast {
+            animation: slide-in 0.5s forwards, slide-out 0.5s 5s forwards;
+        }
+        @keyframes slide-in {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes slide-out {
+            from { transform: translateY(0); opacity: 1; }
+            to { transform: translateY(100%); opacity: 0; }
+        }
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            aside, button, #toast-container, #taskModal, #completedTasksModal, #prev-month, #next-month, #clear-filters-btn {
+                display: none !important;
+            }
+            #app, main {
+                display: block !important;
+                width: 100% !important;
+                padding: 0 !important;
+                border: none !important;
+                height: auto !important;
+                overflow: visible !important;
+            }
+            #current-month-year {
+                font-size: 1.5rem;
+                text-align: center;
+                width: 100%;
+            }
+            .calendar-grid {
+                gap: 0;
+            }
+            .calendar-grid > div:not(.bg-gray-50) {
+                border: 1px solid #ccc;
+                min-height: 110px;
+                page-break-inside: avoid;
+            }
+            .bg-gray-50 {
+                border: none;
+            }
+            .taskEl {
+                color: black !important;
+                background: transparent !important;
+                padding: 2px 4px !important;
+                margin-bottom: 2px !important;
+                border-radius: 2px !important;
+                font-size: 9pt !important;
+            }
+            .taskEl[data-type="inaplazable"] { border-left: 4px solid #ef4444; background-color: #fee2e2 !important; }
+            .taskEl[data-type="flexible"] { border-left: 4px solid #f97316; background-color: #ffedd5 !important; }
+            .taskEl[data-type="anual"] { border-left: 4px solid #3b82f6; background-color: #dbeafe !important; }
+            .taskEl[data-type="recurrente"] { border-left: 4px solid #8b5cf6; background-color: #ede9fe !important; }
+            .taskEl[data-type="puntual"] { border-left: 4px solid #6b7280; background-color: #f3f4f6 !important; }
+
+            .line-through { text-decoration: line-through; }
+            .opacity-60 { opacity: 0.7; }
+            .text-white { color: black !important; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <!-- Contenedor Principal -->
+    <div id="app" class="flex flex-col lg:flex-row h-screen">
+
+        <!-- Panel Lateral (Información y Controles) -->
+        <aside class="w-full lg:w-1/3 xl:w-1/4 p-6 bg-white border-r border-gray-200 flex flex-col space-y-6 overflow-y-auto">
+            <header>
+                <h1 class="text-2xl font-bold text-blue-700">Gestor de Tareas</h1>
+                <p class="text-gray-500">Farmacia Trébol</p>
+            </header>
+
+            <button id="addTaskBtn" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-blue-700 transition-colors duration-300">
+                Añadir Nueva Tarea
+            </button>
+             <button id="review-completed-btn" class="w-full bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-lg shadow-sm hover:bg-gray-300 transition-colors duration-300">
+                Revisar Tareas Completadas
+            </button>
+            <button id="print-view-btn" class="w-full bg-teal-600 text-white font-bold py-3 px-4 rounded-lg shadow-sm hover:bg-teal-700 transition-colors duration-300">
+                Vista Imprimible
+            </button>
+            
+             <!-- Filtros -->
+            <div>
+                <h2 class="text-lg font-semibold mb-3 border-b pb-2">Filtros</h2>
+                <div class="space-y-3">
+                    <div>
+                        <label for="filter-employee" class="text-sm font-medium">Empleado:</label>
+                        <select id="filter-employee" class="w-full mt-1 border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <option value="all">Todos</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="filter-type" class="text-sm font-medium">Tipo de Tarea:</label>
+                        <select id="filter-type" class="w-full mt-1 border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <option value="all">Todos</option>
+                            <option value="inaplazable">Inaplazable</option>
+                            <option value="flexible">Flexible</option>
+                            <option value="anual">Anual</option>
+                            <option value="recurrente">Recurrente</option>
+                            <option value="puntual">Puntual</option>
+                        </select>
+                    </div>
+                    <button id="clear-filters-btn" class="w-full text-sm text-blue-600 hover:underline">Limpiar Filtros</button>
+                </div>
+            </div>
+
+            <!-- Sección de Empleados y Tiempos -->
+            <div>
+                <h2 class="text-lg font-semibold mb-3 border-b pb-2">Resumen por Empleado</h2>
+                <div id="employee-report" class="space-y-3">
+                    <!-- El reporte se generará aquí -->
+                </div>
+            </div>
+
+            <!-- Sección de Gestión de Empleados -->
+            <div>
+                <h2 class="text-lg font-semibold mb-3 border-b pb-2">Gestionar Empleados</h2>
+                <form id="add-employee-form" class="flex gap-2 mb-3">
+                    <input type="text" id="new-employee-name" placeholder="Nombre del empleado" class="w-full border-gray-300 rounded-lg shadow-sm text-sm" required>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 text-sm">Añadir</button>
+                </form>
+                <div id="employee-list" class="space-y-2">
+                    <!-- Lista de empleados se generará aquí -->
+                </div>
+            </div>
+            
+        </aside>
+
+        <!-- Área Principal (Calendario) -->
+        <main class="flex-1 p-6 flex flex-col">
+            <!-- Cabecera del Calendario -->
+            <div class="flex items-center justify-between mb-4">
+                <button id="prev-month" class="p-2 rounded-full hover:bg-gray-200 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                </button>
+                <h2 id="current-month-year" class="text-xl font-bold text-center"></h2>
+                <button id="next-month" class="p-2 rounded-full hover:bg-gray-200 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </button>
+            </div>
+
+            <!-- Días de la semana -->
+            <div class="grid calendar-grid text-center font-semibold text-sm text-gray-600 mb-2">
+                <div>L</div><div>M</div><div>X</div><div>J</div><div>V</div><div>S</div><div>D</div>
+            </div>
+
+            <!-- Grid del Calendario -->
+            <div id="calendar-grid" class="grid calendar-grid flex-1 gap-2">
+                <!-- Los días se generarán aquí -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal para Añadir/Editar Tarea -->
+    <div id="taskModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg p-8 transform transition-all scale-95 opacity-0">
+            <h2 id="modal-title" class="text-2xl font-bold mb-6">Nueva Tarea</h2>
+            <form id="task-form">
+                <input type="hidden" id="task-id">
+                <input type="hidden" id="task-status">
+                
+                <div class="mb-4">
+                    <label for="task-title" class="block text-sm font-medium text-gray-700 mb-1">Título</label>
+                    <input type="text" id="task-title" class="w-full border-gray-300 rounded-lg shadow-sm" required>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label for="task-type" class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+                        <select id="task-type" class="w-full border-gray-300 rounded-lg shadow-sm" required>
+                            <option value="puntual">Puntual</option>
+                            <option value="inaplazable">Inaplazable</option>
+                            <option value="flexible">Flexible</option>
+                            <option value="recurrente">Recurrente</option>
+                            <option value="anual">Anual</option>
+                        </select>
+                    </div>
+                    <div id="recurrence-container" class="hidden">
+                        <label for="task-recurrence-day" class="block text-sm font-medium text-gray-700 mb-1">Repetir el</label>
+                        <select id="task-recurrence-day" class="w-full border-gray-300 rounded-lg shadow-sm">
+                            <option value="1">Lunes</option><option value="2">Martes</option><option value="3">Miércoles</option>
+                            <option value="4">Jueves</option><option value="5">Viernes</option><option value="6">Sábado</option>
+                            <option value="0">Domingo</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4" id="dates-container">
+                    <div id="start-date-container">
+                        <label for="task-start-date" class="block text-sm font-medium text-gray-700 mb-1">Fecha Inicio</label>
+                        <input type="date" id="task-start-date" class="w-full border-gray-300 rounded-lg shadow-sm">
+                    </div>
+                    <div id="due-date-container">
+                        <label for="task-due-date" class="block text-sm font-medium text-gray-700 mb-1">Fecha Fin</label>
+                        <input type="date" id="task-due-date" class="w-full border-gray-300 rounded-lg shadow-sm">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label for="task-assigned-to" class="block text-sm font-medium">Asignar a</label>
+                        <select id="task-assigned-to" class="w-full border-gray-300 rounded-lg shadow-sm"> </select>
+                    </div>
+                    <div>
+                        <label for="task-time" class="block text-sm font-medium">Tiempo Estimado (min)</label>
+                        <input type="number" id="task-time" min="0" step="5" class="w-full border-gray-300 rounded-lg shadow-sm" required>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center mt-8">
+                    <div>
+                        <button type="button" id="delete-task-btn" class="hidden text-red-600 hover:text-red-800 font-medium">Eliminar</button>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button type="button" id="toggle-status-btn" class="hidden px-4 py-2 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 font-medium"></button>
+                        <button type="button" id="cancel-btn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Cancelar</button>
+                        <button type="submit" class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">Guardar</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Modal para Revisar Tareas Completadas -->
+    <div id="completedTasksModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-8 transform transition-all scale-95 opacity-0 flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center mb-6">
+                 <h2 class="text-2xl font-bold">Tareas Completadas</h2>
+                 <button id="close-completed-modal-btn" class="p-2 rounded-full hover:bg-gray-200">
+                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                 </button>
+            </div>
+            <div id="completed-tasks-list" class="overflow-y-auto">
+                <!-- La lista de tareas completadas se generará aquí -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenedor de Notificaciones (Toast) -->
+    <div id="toast-container" class="fixed bottom-0 right-0 p-6 space-y-3 z-50 w-full max-w-sm"></div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- ESTADO Y DATOS ---
+        let currentDate = new Date();
+        let tasks = JSON.parse(localStorage.getItem('pharmacyTasks')) || [
+             { id: 1, title: 'Revisión Caducidades', type: 'recurrente', dueDate: null, startDate: null, assignedTo: 2, estimatedTime: 30, status: 'pendiente', recurrence: { type: 'weekly', day: 1 } },
+             { id: 2, title: 'Pedido Semanal', type: 'inaplazable', dueDate: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split('T')[0], startDate: null, assignedTo: 1, estimatedTime: 90, status: 'completada', recurrence: null, completionDate: new Date().toISOString().split('T')[0] },
+             { id: 3, title: 'Limpieza neveras', type: 'flexible', dueDate: new Date(new Date().setDate(new Date().getDate() + 8)).toISOString().split('T')[0], startDate: new Date(new Date().setDate(new Date().getDate() + 3)).toISOString().split('T')[0], assignedTo: 3, estimatedTime: 45, status: 'pendiente', recurrence: null },
+             { id: 4, title: 'Inventario Anual', type: 'anual', dueDate: '2025-10-31', startDate: '2025-10-25', assignedTo: 1, estimatedTime: 240, status: 'pendiente', recurrence: null }
+        ];
+        
+        let employees = JSON.parse(localStorage.getItem('pharmacyEmployees')) || [ 
+            { id: 1, name: 'Ana García' }, 
+            { id: 2, name: 'Luis Pérez' }, 
+            { id: 3, name: 'Carla Ruiz' } 
+        ];
+
+        const employeeColorPalette = [
+            { bg: 'bg-blue-100', text: 'text-blue-800' },
+            { bg: 'bg-green-100', text: 'text-green-800' },
+            { bg: 'bg-yellow-100', text: 'text-yellow-800' },
+            { bg: 'bg-purple-100', text: 'text-purple-800' },
+            { bg: 'bg-pink-100', text: 'text-pink-800' },
+            { bg: 'bg-indigo-100', text: 'text-indigo-800' }
+        ];
+        const defaultEmployeeColor = { bg: 'bg-gray-100', text: 'text-gray-800' };
+        const taskTypeBorders = { 
+            inaplazable: 'border-red-500', 
+            flexible: 'border-orange-500', 
+            anual: 'border-blue-500', 
+            recurrente: 'border-purple-500', 
+            puntual: 'border-gray-500' 
+        };
+        let filters = { employee: 'all', type: 'all' };
+
+        // --- SELECTORES DEL DOM ---
+        const calendarGrid = document.getElementById('calendar-grid');
+        const currentMonthYearEl = document.getElementById('current-month-year');
+        const taskModal = document.getElementById('taskModal');
+        const taskForm = document.getElementById('task-form');
+        const toastContainer = document.getElementById('toast-container');
+        // Filtros y reportes
+        const filterEmployeeSelect = document.getElementById('filter-employee');
+        const filterTypeSelect = document.getElementById('filter-type');
+        const employeeReportEl = document.getElementById('employee-report');
+        // Gestión de Empleados
+        const addEmployeeForm = document.getElementById('add-employee-form');
+        const newEmployeeNameInput = document.getElementById('new-employee-name');
+        const employeeListEl = document.getElementById('employee-list');
+        // Tareas completadas
+        const reviewCompletedBtn = document.getElementById('review-completed-btn');
+        const completedTasksModal = document.getElementById('completedTasksModal');
+        const completedTasksListEl = document.getElementById('completed-tasks-list');
+        const closeCompletedModalBtn = document.getElementById('close-completed-modal-btn');
+        const printViewBtn = document.getElementById('print-view-btn');
+        
+        // --- FUNCIONES DE GUARDADO ---
+        const saveTasks = () => localStorage.setItem('pharmacyTasks', JSON.stringify(tasks));
+        const saveEmployees = () => localStorage.setItem('pharmacyEmployees', JSON.stringify(employees));
+
+        // --- FUNCIONES AUXILIARES DE COLOR ---
+        const getEmployeeColor = (employeeId) => {
+            const employeeIndex = employees.findIndex(e => e.id === employeeId);
+            if (employeeIndex === -1) {
+                return defaultEmployeeColor;
+            }
+            return employeeColorPalette[employeeIndex % employeeColorPalette.length];
+        };
+
+        // --- FUNCIONES DE RENDERIZADO ---
+        const renderAll = () => {
+            renderCalendar();
+            renderEmployeeUI();
+        };
+
+        const renderCalendar = () => {
+            calendarGrid.innerHTML = '';
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            currentMonthYearEl.textContent = `${currentDate.toLocaleString('es-ES', { month: 'long' })} ${year}`;
+            const firstDayOfMonth = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const dayOffset = (firstDayOfMonth === 0) ? 6 : firstDayOfMonth - 1;
+            for (let i = 0; i < dayOffset; i++) {
+                calendarGrid.innerHTML += `<div class="bg-gray-50 rounded-lg"></div>`;
+            }
+
+            const filteredTasks = tasks.filter(task => (filters.employee === 'all' || task.assignedTo == filters.employee) && (filters.type === 'all' || task.type === filters.type));
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(year, month, day);
+                const dayEl = document.createElement('div');
+                dayEl.className = 'border border-gray-200 bg-white rounded-lg p-2 flex flex-col min-h-[120px]';
+                
+                const today = new Date();
+                const dayNumberClass = date.toDateString() === today.toDateString() ? 'font-bold text-blue-600' : 'text-sm';
+                dayEl.innerHTML = `<div class="text-center ${dayNumberClass} mb-1">${day}</div>`;
+
+                const tasksForDay = getTasksForDate(date, filteredTasks);
+                const tasksContainer = document.createElement('div');
+                tasksContainer.className = 'space-y-1 overflow-y-auto flex-1';
+
+                tasksForDay.forEach(task => {
+                    const taskEl = document.createElement('div');
+                    taskEl.dataset.type = task.type;
+                    const employeeColor = getEmployeeColor(task.assignedTo);
+                    const typeBorderColor = taskTypeBorders[task.type] || 'border-gray-400';
+                    
+                    taskEl.className = `taskEl text-xs p-1.5 rounded-md cursor-pointer border-l-4 font-medium ${employeeColor.bg} ${employeeColor.text} ${typeBorderColor}`;
+
+                    if (task.status === 'completada') {
+                        taskEl.classList.add('opacity-60');
+                        taskEl.innerHTML = `<span class="font-semibold line-through">${task.title}</span>`;
+                    } else {
+                        taskEl.innerHTML = `<span class="font-semibold">${task.title}</span>`;
+                    }
+                    taskEl.addEventListener('click', (e) => { e.stopPropagation(); openModal(task); });
+                    tasksContainer.appendChild(taskEl);
+                });
+
+                dayEl.appendChild(tasksContainer);
+                dayEl.addEventListener('click', () => openModal(null, date.toISOString().split('T')[0]));
+                calendarGrid.appendChild(dayEl);
+            }
+        };
+
+        const getTasksForDate = (date, taskList) => {
+            const dateString = date.toISOString().split('T')[0];
+            const dayOfWeek = date.getDay();
+            return taskList.filter(task => {
+                if (task.type === 'recurrente' && task.recurrence) {
+                    return task.recurrence.day == dayOfWeek && new Date(date).getMonth() === currentDate.getMonth();
+                }
+                if (task.type === 'flexible' || task.type === 'anual') {
+                    return dateString >= task.startDate && dateString <= task.dueDate;
+                }
+                return task.dueDate === dateString;
+            });
+        };
+
+        const formatTime = (minutes) => {
+            if (!minutes || minutes < 1) return '0m';
+            const h = Math.floor(minutes / 60);
+            const m = minutes % 60;
+            return `${h > 0 ? `${h}h ` : ''}${m}m`;
+        };
+
+        const renderEmployeeUI = () => {
+            // Limpiar y rellenar la lista de empleados
+            employeeListEl.innerHTML = '';
+            employees.forEach(emp => {
+                const empEl = document.createElement('div');
+                const color = getEmployeeColor(emp.id);
+                empEl.className = 'flex justify-between items-center bg-gray-100 p-2 rounded-lg text-sm';
+                empEl.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full ${color.bg} border border-gray-300"></span>
+                        <span>${emp.name}</span>
+                    </div>
+                    <button data-id="${emp.id}" class="text-red-500 hover:text-red-700 font-bold">X</button>
+                `;
+                employeeListEl.appendChild(empEl);
+            });
+
+            // Limpiar y rellenar los selects
+            const assignedToSelect = document.getElementById('task-assigned-to');
+            assignedToSelect.innerHTML = '<option value="">Sin asignar</option>';
+            filterEmployeeSelect.innerHTML = '<option value="all">Todos</option>';
+            employees.forEach(emp => {
+                assignedToSelect.innerHTML += `<option value="${emp.id}">${emp.name}</option>`;
+                filterEmployeeSelect.innerHTML += `<option value="${emp.id}">${emp.name}</option>`;
+            });
+            filterEmployeeSelect.value = filters.employee; // Mantener el filtro seleccionado
+
+            // Renderizar el reporte
+            employeeReportEl.innerHTML = '';
+            employees.forEach(employee => {
+                const employeeTasks = tasks.filter(task => task.assignedTo === employee.id && ( (task.dueDate && new Date(task.dueDate).getMonth() === currentDate.getMonth()) || (task.startDate && new Date(task.startDate).getMonth() === currentDate.getMonth()) || task.type === 'recurrente' ));
+                const totalTime = employeeTasks.reduce((sum, task) => sum + (task.estimatedTime || 0), 0);
+                const completedTime = employeeTasks.filter(t => t.status === 'completada').reduce((sum, task) => sum + (task.estimatedTime || 0), 0);
+
+                employeeReportEl.innerHTML += `
+                    <div class="p-3 bg-gray-100 rounded-lg">
+                        <p class="font-semibold">${employee.name}</p>
+                        <p class="text-sm text-gray-600">Tiempo Total: <strong>${formatTime(totalTime)}</strong></p>
+                        <p class="text-sm text-green-700">Tiempo Completado: <strong>${formatTime(completedTime)}</strong></p>
+                        <div class="w-full bg-gray-300 rounded-full h-2.5 mt-2">
+                            <div class="bg-green-500 h-2.5 rounded-full" style="width: ${totalTime > 0 ? (completedTime / totalTime) * 100 : 0}%"></div>
+                        </div>
+                    </div>`;
+            });
+        };
+
+        // --- GESTIÓN DE EMPLEADOS ---
+        const handleAddNewEmployee = (e) => {
+            e.preventDefault();
+            const name = newEmployeeNameInput.value.trim();
+            if (name) {
+                employees.push({ id: Date.now(), name: name });
+                saveEmployees();
+                renderEmployeeUI();
+                newEmployeeNameInput.value = '';
+            }
+        };
+
+        const handleDeleteEmployee = (id) => {
+            if (confirm('¿Seguro que quieres eliminar este empleado? Las tareas que tenga asignadas quedarán sin asignar.')) {
+                employees = employees.filter(emp => emp.id !== id);
+                tasks.forEach(task => {
+                    if (task.assignedTo === id) {
+                        task.assignedTo = null;
+                    }
+                });
+                saveEmployees();
+                saveTasks();
+                renderAll();
+            }
+        };
+
+        // --- MODALES ---
+        const openModal = (task = null, date = null) => {
+            const modalContent = taskModal.querySelector('div');
+            taskForm.reset();
+            ['task-id', 'task-status'].forEach(id => document.getElementById(id).value = '');
+            
+            if (task) { // Editar
+                document.getElementById('modal-title').textContent = 'Editar Tarea';
+                Object.keys(task).forEach(key => {
+                    const el = document.getElementById(`task-${key.toLowerCase().replace('estimatedtime', 'time').replace('assignedto', 'assigned-to')}`);
+                    if (el) el.value = task[key] || '';
+                });
+                if (task.recurrence) document.getElementById('task-recurrence-day').value = task.recurrence.day;
+                
+                document.getElementById('delete-task-btn').classList.remove('hidden');
+                const toggleBtn = document.getElementById('toggle-status-btn');
+                toggleBtn.classList.remove('hidden');
+                toggleBtn.textContent = task.status === 'completada' ? 'Marcar Pendiente' : 'Marcar Completada';
+                toggleBtn.className = `px-4 py-2 rounded-lg font-medium ${task.status === 'completada' ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200' : 'bg-green-100 text-green-800 hover:bg-green-200'}`;
+
+            } else { // Crear
+                document.getElementById('modal-title').textContent = 'Nueva Tarea';
+                document.getElementById('task-status').value = 'pendiente';
+                if(date) {
+                    document.getElementById('task-start-date').value = date;
+                    document.getElementById('task-due-date').value = date;
+                }
+                document.getElementById('delete-task-btn').classList.add('hidden');
+                document.getElementById('toggle-status-btn').classList.add('hidden');
+            }
+
+            updateModalUI();
+            taskModal.classList.remove('hidden');
+            taskModal.classList.add('flex');
+            setTimeout(() => modalContent.classList.remove('scale-95', 'opacity-0'), 50);
+        };
+
+        const closeModal = (modalEl) => {
+            const modalContent = modalEl.querySelector('div');
+            modalContent.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => { modalEl.classList.add('hidden'); modalEl.classList.remove('flex'); }, 200);
+        };
+
+        const updateModalUI = () => {
+            const type = document.getElementById('task-type').value;
+            document.getElementById('recurrence-container').classList.toggle('hidden', type !== 'recurrente');
+            document.getElementById('dates-container').classList.toggle('hidden', type === 'recurrente');
+            const isRange = type === 'flexible' || type === 'anual';
+            document.getElementById('start-date-container').style.display = isRange ? 'block' : 'none';
+            document.getElementById('due-date-container').querySelector('label').textContent = isRange ? 'Fecha Fin' : 'Fecha';
+            if(!isRange) document.getElementById('task-start-date').value = document.getElementById('task-due-date').value;
+        };
+        
+        const getEmployeeNameById = (id) => employees.find(e => e.id === id)?.name || 'Sin asignar';
+
+        const openCompletedModal = () => {
+            const modalContent = completedTasksModal.querySelector('div');
+            const completed = tasks.filter(t => t.status === 'completada').sort((a, b) => new Date(b.completionDate || b.dueDate) - new Date(a.completionDate || a.dueDate));
+            if(completed.length === 0) {
+                completedTasksListEl.innerHTML = '<p class="text-gray-500 text-center">No hay tareas completadas.</p>';
+            } else {
+                completedTasksListEl.innerHTML = `
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-gray-50">
+                            <tr><th class="p-2">Tarea</th><th class="p-2">Completada por</th><th class="p-2">Fecha de Finalización</th></tr>
+                        </thead>
+                        <tbody>
+                        ${completed.map(task => `
+                            <tr class="border-b">
+                                <td class="p-2 font-medium">${task.title}</td>
+                                <td class="p-2">${getEmployeeNameById(task.assignedTo)}</td>
+                                <td class="p-2">${new Date(task.completionDate || task.dueDate).toLocaleDateString()}</td>
+                            </tr>
+                        `).join('')}
+                        </tbody>
+                    </table>`;
+            }
+
+            completedTasksModal.classList.remove('hidden');
+            completedTasksModal.classList.add('flex');
+            setTimeout(() => modalContent.classList.remove('scale-95', 'opacity-0'), 50);
+        };
+
+        // --- NOTIFICACIONES ---
+        const showToast = (message) => {
+            const toast = document.createElement('div');
+            toast.className = 'toast bg-red-600 text-white font-bold p-4 rounded-lg shadow-lg';
+            toast.textContent = message;
+            toastContainer.appendChild(toast);
+            setTimeout(() => toast.remove(), 5500);
+        };
+
+        const checkDueTasks = () => {
+            const today = new Date().toISOString().split('T')[0];
+            tasks.forEach(task => {
+                if (task.type === 'inaplazable' && task.dueDate === today && task.status === 'pendiente') {
+                    showToast(`¡ATENCIÓN! La tarea "${task.title}" vence hoy.`);
+                }
+            });
+        };
+
+        // --- INICIALIZACIÓN Y EVENTOS ---
+        const init = () => {
+            // Navegación Calendario
+            document.getElementById('prev-month').addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() - 1); renderAll(); });
+            document.getElementById('next-month').addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() + 1); renderAll(); });
+            
+            // Filtros
+            filterEmployeeSelect.addEventListener('change', (e) => { filters.employee = e.target.value; renderCalendar(); });
+            filterTypeSelect.addEventListener('change', (e) => { filters.type = e.target.value; renderCalendar(); });
+            document.getElementById('clear-filters-btn').addEventListener('click', () => { filters = { employee: 'all', type: 'all' }; filterEmployeeSelect.value = 'all'; filterTypeSelect.value = 'all'; renderAll(); });
+
+            // Gestión Empleados
+            addEmployeeForm.addEventListener('submit', handleAddNewEmployee);
+            employeeListEl.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON') {
+                    handleDeleteEmployee(parseInt(e.target.dataset.id));
+                }
+            });
+
+            // Modales y Botones
+            document.getElementById('addTaskBtn').addEventListener('click', () => openModal());
+            printViewBtn.addEventListener('click', () => window.print());
+            document.getElementById('cancel-btn').addEventListener('click', () => closeModal(taskModal));
+            taskModal.addEventListener('click', (e) => { if (e.target === taskModal) closeModal(taskModal); });
+            document.getElementById('task-type').addEventListener('change', updateModalUI);
+            reviewCompletedBtn.addEventListener('click', openCompletedModal);
+            closeCompletedModalBtn.addEventListener('click', () => closeModal(completedTasksModal));
+            completedTasksModal.addEventListener('click', (e) => { if (e.target === completedTasksModal) closeModal(completedTasksModal); });
+
+
+            // Lógica del formulario de tareas
+            taskForm.addEventListener('submit', e => {
+                e.preventDefault();
+                const id = parseInt(document.getElementById('task-id').value);
+                const type = document.getElementById('task-type').value;
+                const taskData = {
+                    id: id || Date.now(),
+                    title: document.getElementById('task-title').value,
+                    type: type,
+                    dueDate: document.getElementById('task-due-date').value,
+                    startDate: type === 'flexible' || type === 'anual' ? document.getElementById('task-start-date').value : document.getElementById('task-due-date').value,
+                    assignedTo: parseInt(document.getElementById('task-assigned-to').value) || null,
+                    estimatedTime: parseInt(document.getElementById('task-time').value),
+                    status: document.getElementById('task-status').value || 'pendiente',
+                    recurrence: type === 'recurrente' ? { type: 'weekly', day: document.getElementById('task-recurrence-day').value } : null
+                };
+                
+                const existingTask = tasks.find(t => t.id === taskData.id);
+                if(existingTask) taskData.completionDate = existingTask.completionDate;
+
+
+                if (id) tasks[tasks.findIndex(t => t.id === id)] = taskData;
+                else tasks.push(taskData);
+                saveTasks();
+                renderAll();
+                closeModal(taskModal);
+            });
+
+            document.getElementById('delete-task-btn').addEventListener('click', () => {
+                const id = parseInt(document.getElementById('task-id').value);
+                tasks = tasks.filter(t => t.id !== id);
+                saveTasks();
+                renderAll();
+                closeModal(taskModal);
+            });
+            
+            document.getElementById('toggle-status-btn').addEventListener('click', () => {
+                const id = parseInt(document.getElementById('task-id').value);
+                const task = tasks.find(t => t.id === id);
+                if(task) {
+                    if (task.status === 'pendiente') {
+                        task.status = 'completada';
+                        task.completionDate = new Date().toISOString().split('T')[0];
+                    } else {
+                        task.status = 'pendiente';
+                        task.completionDate = null;
+                    }
+                    saveTasks(); 
+                    renderAll(); 
+                    openModal(task); 
+                }
+            });
+
+            renderAll();
+            checkDueTasks();
+        };
+
+        init();
+    });
+    </script>
+</body>
+</html>
+
