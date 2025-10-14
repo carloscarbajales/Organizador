@@ -6,6 +6,25 @@
     <title>Gestor de Tareas Multi-Farmacia</title>
     <script src="https://cdn-tailwindcss.vercel.app/"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Firebase SDK -->
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        window.firebase = {
+            initializeApp,
+            getAuth,
+            signInAnonymously,
+            signInWithCustomToken,
+            getFirestore,
+            doc,
+            getDoc,
+            setDoc,
+            onSnapshot,
+            updateDoc
+        };
+    </script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -83,12 +102,30 @@
             .opacity-60 { opacity: 0.7; }
             .text-white { color: black !important; }
         }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
 
+    <!-- Pantalla de Carga Inicial -->
+    <div id="loading-screen" class="flex flex-col items-center justify-center h-screen bg-gray-100">
+        <div class="loader"></div>
+        <p class="mt-4 text-gray-600">Conectando...</p>
+    </div>
+
     <!-- Pantalla de Login -->
-    <div id="login-screen" class="flex items-center justify-center h-screen bg-gray-100">
+    <div id="login-screen" class="hidden items-center justify-center h-screen bg-gray-100">
         <div class="w-full max-w-md bg-white p-8 rounded-xl shadow-lg">
             <h1 class="text-3xl font-bold text-center text-blue-700 mb-2">Gestor de Tareas</h1>
             <p class="text-center text-gray-500 mb-8">Acceso a Farmacias</p>
@@ -400,9 +437,13 @@
     <!-- Contenedor de Notificaciones (Toast) -->
     <div id="toast-container" class="fixed bottom-0 right-0 p-6 space-y-3 z-50 w-full max-w-sm"></div>
 
-    <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        // --- ESTADO Y DATOS ---
+    <script type="module">
+    document.addEventListener('DOMContentLoaded', async () => {
+        // --- INSTANCIAS Y CONFIGURACIÓN DE FIREBASE ---
+        let db, auth;
+        let unsubscribePharmacyData = () => {}; // Función para cancelar la suscripción de onSnapshot
+        
+        // --- ESTADO Y DATOS LOCALES ---
         let currentDate = new Date();
         let tasks = [];
         let employees = [];
@@ -435,6 +476,7 @@
         let filters = { employee: 'all', type: 'all' };
 
         // --- SELECTORES DEL DOM ---
+        const loadingScreen = document.getElementById('loading-screen');
         const loginScreen = document.getElementById('login-screen');
         const appContainer = document.getElementById('app');
         const lockBtn = document.getElementById('lock-btn');
@@ -478,7 +520,6 @@
         const addPharmacyForm = document.getElementById('add-pharmacy-form');
         const pharmacyManagementList = document.getElementById('pharmacy-management-list');
 
-        
         // --- FUNCIONES DE GUARDADO Y SEGURIDAD ---
         const toISODateString = (date) => {
             if (!date) return null;
@@ -486,48 +527,7 @@
             d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
             return d.toISOString().split('T')[0];
         };
-
-        const loadAllData = () => {
-            allPharmacies = JSON.parse(localStorage.getItem('multiPharmacy_pharmacies')) || [];
-            allPasswords = JSON.parse(localStorage.getItem('multiPharmacy_passwords')) || {};
-        };
         
-        const saveAllPharmacies = () => localStorage.setItem('multiPharmacy_pharmacies', JSON.stringify(allPharmacies));
-
-        const generateInitialData = () => {
-            if (allPharmacies.length === 0) {
-                 const pharmacyNames = ["ALBUFERA","ALCORCON","ANTONIO LEYVA","ARANJUEZ","ARGANDA","ARROYO DEL OLIVAR","ATOCHA","AVENIDA BRUSELAS","AVENIDA PUERTO","BENIDORM","BETANZOS","BURJASSOT","CAMPANAR","CANILLEJAS","CARRETERIA","CASTELO","CHAMARTIN","DELICIAS","ESPAÑA","EUROPA","EZEQUIEL SOLANA","FUENGIROLA","FUENLABRADA","GETAFE","GUILLEM DE CASTRO","GUZMAN EL BUENO","HERNANI","LA ELIANA","LAGOH","LEGANES","LUCHANA","MAJADAHONDA","MARIO CABRE","MARQUES DE LA VALDAVIA","MARQUES DE ZAFRA","MARTINEZ DE LA RIVA","MEDITERRANEO","MOLINA DE SEGURA","MONFORTE","MONTEOLIVETE","MORATALAZ","MOSTOLES","MOSTOLES SOTO","NIZA","NOBLEJAS","OPORTO","ORENSE","PARLA ESTE","PASEO DE EXTREMADURA","PAU 5, PLAYA SAN JUAN","PEÑALVER","POZUELO","QUIÑON","REQUENA","RETIRO","SAN BLAS","SAN FERNANDO","SAN JAIME","SAN JOSE DE VALDERAS","SAN MARTIN DE LA VEGA","TORREJON","TORRELAGUNA","TORREVIEJA","TRES FORQUES","TRINITAT","URGEL","URQUIJO","USERA","VALDEBEBAS","VALL DE UXO","VALLADOLID","VICTOR DE LA SERNA","VILLAVERDE","XIRIVELLA","ZARZAQUEMADA"];
-                allPharmacies = pharmacyNames.map((name, index) => ({ id: index + 1, name: name }));
-                saveAllPharmacies();
-                document.getElementById('initial-setup-message').classList.remove('hidden');
-            }
-        };
-
-        const loadPharmacyData = (pharmacyId) => {
-            tasks = JSON.parse(localStorage.getItem(`pharmacy-${pharmacyId}-tasks`)) || [];
-            const storedEmployees = JSON.parse(localStorage.getItem(`pharmacy-${pharmacyId}-employees`));
-
-            if (storedEmployees) {
-                employees = storedEmployees;
-            } else {
-                employees = [
-                    { id: 1, name: 'Gerente' },
-                    { id: 2, name: 'Adjunto Gt' },
-                    { id: 3, name: 'Dinamizador Dermo' },
-                    { id: 4, name: 'Equipo 1' },
-                    { id: 5, name: 'Equipo 2' },
-                    { id: 6, name: 'Equipo 3' },
-                    { id: 7, name: 'Equipo 4' },
-                    { id: 8, name: 'Equipo 5' }
-                ];
-                localStorage.setItem(`pharmacy-${pharmacyId}-employees`, JSON.stringify(employees));
-            }
-        };
-
-        const saveTasks = () => localStorage.setItem(`pharmacy-${currentPharmacyId}-tasks`, JSON.stringify(tasks));
-        const saveEmployees = () => localStorage.setItem(`pharmacy-${currentPharmacyId}-employees`, JSON.stringify(employees));
-        const savePasswords = () => localStorage.setItem('multiPharmacy_passwords', JSON.stringify(allPasswords));
-
         const hashCode = (str) => {
           let hash = 0;
           for (let i = 0, len = str.length; i < len; i++) {
@@ -537,6 +537,72 @@
           }
           return hash.toString();
         };
+
+        // --- FUNCIONES DE FIREBASE ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        // Definición de referencias a documentos de Firestore
+        const getPharmaciesRef = () => window.firebase.doc(db, `artifacts/${appId}/public/data/config`, 'pharmacies');
+        const getPasswordsRef = () => window.firebase.doc(db, `artifacts/${appId}/public/data/config`, 'passwords');
+        const getPharmacyDataRef = (pharmacyId) => window.firebase.doc(db, `artifacts/${appId}/public/data/pharmacyData`, String(pharmacyId));
+        
+        async function loadGlobalData() {
+            const pharmaciesDoc = await window.firebase.getDoc(getPharmaciesRef());
+            if (pharmaciesDoc.exists() && pharmaciesDoc.data().list) {
+                allPharmacies = pharmaciesDoc.data().list;
+            } else {
+                await generateInitialPharmacies();
+            }
+
+            const passwordsDoc = await window.firebase.getDoc(getPasswordsRef());
+            if (passwordsDoc.exists()) {
+                allPasswords = passwordsDoc.data();
+            } else {
+                 document.getElementById('initial-setup-message').classList.remove('hidden');
+            }
+        }
+
+        async function generateInitialPharmacies() {
+            const pharmacyNames = ["ALBUFERA","ALCORCON","ANTONIO LEYVA","ARANJUEZ","ARGANDA","ARROYO DEL OLIVAR","ATOCHA","AVENIDA BRUSELAS","AVENIDA PUERTO","BENIDORM","BETANZOS","BURJASSOT","CAMPANAR","CANILLEJAS","CARRETERIA","CASTELO","CHAMARTIN","DELICIAS","ESPAÑA","EUROPA","EZEQUIEL SOLANA","FUENGIROLA","FUENLABRADA","GETAFE","GUILLEM DE CASTRO","GUZMAN EL BUENO","HERNANI","LA ELIANA","LAGOH","LEGANES","LUCHANA","MAJADAHONDA","MARIO CABRE","MARQUES DE LA VALDAVIA","MARQUES DE ZAFRA","MARTINEZ DE LA RIVA","MEDITERRANEO","MOLINA DE SEGURA","MONFORTE","MONTEOLIVETE","MORATALAZ","MOSTOLES","MOSTOLES SOTO","NIZA","NOBLEJAS","OPORTO","ORENSE","PARLA ESTE","PASEO DE EXTREMADURA","PAU 5, PLAYA SAN JUAN","PEÑALVER","POZUELO","QUIÑON","REQUENA","RETIRO","SAN BLAS","SAN FERNANDO","SAN JAIME","SAN JOSE DE VALDERAS","SAN MARTIN DE LA VEGA","TORREJON","TORRELAGUNA","TORREVIEJA","TRES FORQUES","TRINITAT","URGEL","URQUIJO","USERA","VALDEBEBAS","VALL DE UXO","VALLADOLID","VICTOR DE LA SERNA","VILLAVERDE","XIRIVELLA","ZARZAQUEMADA"];
+            allPharmacies = pharmacyNames.map((name, index) => ({ id: index + 1, name: name }));
+            await window.firebase.setDoc(getPharmaciesRef(), { list: allPharmacies });
+        }
+
+        async function saveAllPharmacies() {
+             await window.firebase.setDoc(getPharmaciesRef(), { list: allPharmacies });
+        }
+        
+        async function savePasswords() {
+            await window.firebase.setDoc(getPasswordsRef(), allPasswords);
+        }
+
+        async function savePharmacyData() {
+            if (!currentPharmacyId) return;
+            await window.firebase.setDoc(getPharmacyDataRef(currentPharmacyId), { tasks, employees });
+        }
+
+        function listenToPharmacyData(pharmacyId) {
+            unsubscribePharmacyData(); // Cancelar la escucha anterior
+            const pharmacyDataRef = getPharmacyDataRef(pharmacyId);
+            unsubscribePharmacyData = window.firebase.onSnapshot(pharmacyDataRef, (doc) => {
+                if (doc.exists()) {
+                    const data = doc.data();
+                    tasks = data.tasks || [];
+                    employees = data.employees || [];
+                } else {
+                    // Si no existe, creamos los empleados por defecto
+                    employees = [
+                        { id: 1, name: 'Gerente' }, { id: 2, name: 'Adjunto Gt' }, { id: 3, name: 'Dinamizador Dermo' },
+                        { id: 4, name: 'Equipo 1' }, { id: 5, name: 'Equipo 2' }, { id: 6, name: 'Equipo 3' },
+                        { id: 7, name: 'Equipo 4' }, { id: 8, name: 'Equipo 5' }
+                    ];
+                    tasks = [];
+                    savePharmacyData(); // Guardamos el estado inicial en Firestore
+                }
+                renderAll();
+            });
+        }
+
 
         // --- FUNCIONES AUXILIARES DE COLOR ---
         const getEmployeeColor = (employeeId) => {
@@ -783,20 +849,19 @@
         };
 
         // --- GESTIÓN DE EMPLEADOS ---
-        const handleAddNewEmployee = (e) => {
+        async function handleAddNewEmployee(e) {
             e.preventDefault();
             if (isLocked) { promptForPassword(); return; }
             const name = newEmployeeNameInput.value.trim();
             if (name) {
                 const newId = employees.length > 0 ? Math.max(...employees.map(emp => emp.id)) + 1 : 1;
                 employees.push({ id: newId, name: name });
-                saveEmployees();
-                renderAll();
+                await savePharmacyData();
                 newEmployeeNameInput.value = '';
             }
         };
 
-        const handleDeleteEmployee = (id) => {
+        async function handleDeleteEmployee(id) {
             if (isLocked) { promptForPassword(); return; }
             if (confirm('¿Seguro que quieres eliminar este empleado? Las tareas que tenga asignadas quedarán sin asignar.')) {
                 employees = employees.filter(emp => emp.id !== id);
@@ -805,9 +870,7 @@
                         task.assignedTo = null;
                     }
                 });
-                saveEmployees();
-                saveTasks();
-                renderAll();
+                await savePharmacyData();
             }
         };
 
@@ -1058,7 +1121,7 @@
             });
         };
         
-        const handlePharmacyManagementClick = (e) => {
+        async function handlePharmacyManagementClick(e) {
             const target = e.target;
             const item = target.closest('[data-pharmacy-id]');
             if (!item) return;
@@ -1080,7 +1143,7 @@
                     const pharmacy = allPharmacies.find(p => p.id === pharmacyId);
                     if(pharmacy) {
                         pharmacy.name = newName;
-                        saveAllPharmacies();
+                        await saveAllPharmacies();
                         populatePharmacyManagementList();
                         populateLoginSelect();
                          if(currentPharmacyId === pharmacyId) {
@@ -1092,14 +1155,14 @@
             }
         };
 
-        const handleAddNewPharmacy = (e) => {
+        async function handleAddNewPharmacy(e) {
             e.preventDefault();
             const newNameInput = document.getElementById('new-pharmacy-name');
             const newName = newNameInput.value.trim();
             if (newName) {
                 const newId = allPharmacies.length > 0 ? Math.max(...allPharmacies.map(p => p.id)) + 1 : 1;
                 allPharmacies.push({ id: newId, name: newName });
-                saveAllPharmacies();
+                await saveAllPharmacies();
                 populatePharmacyManagementList();
                 populateLoginSelect();
                 newNameInput.value = '';
@@ -1131,7 +1194,9 @@
         };
 
         const showLoginScreen = () => {
+            loadingScreen.classList.add('hidden');
             loginScreen.classList.remove('hidden');
+            loginScreen.classList.add('flex');
             appContainer.classList.add('hidden');
             appContainer.classList.remove('flex');
             populateLoginSelect();
@@ -1139,12 +1204,15 @@
 
         const populateLoginSelect = () => {
             pharmacySelect.innerHTML = '';
+            // Ordenar farmacias alfabéticamente
+            allPharmacies.sort((a, b) => a.name.localeCompare(b.name));
             allPharmacies.forEach(p => {
                 pharmacySelect.innerHTML += `<option value="${p.id}">${p.name}</option>`;
             });
         };
 
         const showAppScreen = () => {
+            loadingScreen.classList.add('hidden');
             loginScreen.classList.add('hidden');
             appContainer.classList.remove('hidden');
             appContainer.classList.add('flex');
@@ -1153,18 +1221,34 @@
         }
 
         // --- INICIALIZACIÓN Y EVENTOS ---
-        const init = () => {
-            loadAllData();
-            generateInitialData();
+        async function init() {
+            // Inicializar Firebase
+            const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+            const app = window.firebase.initializeApp(firebaseConfig);
+            db = window.firebase.getFirestore(app);
+            auth = window.firebase.getAuth(app);
+            
+            try {
+                if (typeof __initial_auth_token !== 'undefined') {
+                    await window.firebase.signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await window.firebase.signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Error de autenticación en Firebase:", error);
+                loadingScreen.innerHTML = '<p class="text-red-500">Error de autenticación. No se puede conectar a la base de datos.</p>';
+                return;
+            }
+            
+            await loadGlobalData();
             
             const sessionPharmacyId = sessionStorage.getItem('session_pharmacyId');
             if(sessionPharmacyId){
                 currentPharmacyId = parseInt(sessionPharmacyId);
                 isAdminSession = sessionStorage.getItem('session_isAdmin') === 'true';
                 isLocked = false;
-                loadPharmacyData(currentPharmacyId);
+                listenToPharmacyData(currentPharmacyId);
                 showAppScreen();
-                renderAll();
             } else {
                 showLoginScreen();
             }
@@ -1198,7 +1282,7 @@
             completedTasksModal.addEventListener('click', (e) => { if (e.target === completedTasksModal) closeModal(completedTasksModal); });
             
             // Login/Logout y Seguridad
-            loginForm.addEventListener('submit', (e) => {
+            loginForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const selectedPharmacyId = parseInt(pharmacySelect.value);
                 const password = document.getElementById('login-password').value;
@@ -1208,7 +1292,7 @@
 
                 if (!allPasswords.admin) {
                     allPasswords.admin = passHash;
-                    savePasswords();
+                    await savePasswords();
                     showToast('Contraseña de Administrador establecida.', 'success');
                     document.getElementById('initial-setup-message').classList.add('hidden');
                 }
@@ -1223,10 +1307,9 @@
                     
                     sessionStorage.setItem('session_pharmacyId', currentPharmacyId);
                     sessionStorage.setItem('session_isAdmin', isAdminSession);
-
-                    loadPharmacyData(currentPharmacyId);
+                    
+                    listenToPharmacyData(currentPharmacyId);
                     showAppScreen();
-                    renderAll();
                     checkDueTasks();
                 } else {
                     errorEl.textContent = 'Contraseña incorrecta.';
@@ -1234,6 +1317,7 @@
             });
 
             logoutBtn.addEventListener('click', () => {
+                unsubscribePharmacyData(); // Dejar de escuchar cambios
                 sessionStorage.removeItem('session_pharmacyId');
                 sessionStorage.removeItem('session_isAdmin');
                 currentPharmacyId = null;
@@ -1278,7 +1362,7 @@
 
             document.getElementById('cancel-password-btn').addEventListener('click', () => closeModal(passwordModal));
 
-            changePasswordForm.addEventListener('submit', e => {
+            changePasswordForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const currentPass = document.getElementById('current-password').value;
                 const newPass = document.getElementById('new-password').value;
@@ -1306,7 +1390,7 @@
                     showToast('Contraseña de Gerente cambiada.', 'success');
                 }
 
-                savePasswords();
+                await savePasswords();
                 closeModal(changePasswordModal);
             });
             document.getElementById('cancel-change-password-btn').addEventListener('click', () => closeModal(changePasswordModal));
@@ -1318,21 +1402,31 @@
             pharmacyManagementList.addEventListener('click', handlePharmacyManagementClick);
 
             // Lógica del formulario de tareas
-            taskForm.addEventListener('submit', e => {
+            taskForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const id = parseInt(document.getElementById('task-id').value);
                 const type = document.getElementById('task-type').value;
                 
-                const taskData = {
+                let taskData = {
                     id: id || Date.now(),
                     title: document.getElementById('task-title').value,
                     type: type,
                     assignedTo: parseInt(document.getElementById('task-assigned-to').value) || null,
                     estimatedTime: parseInt(document.getElementById('task-time').value) || 0,
-                    status: id ? tasks.find(t=>t.id===id).status : 'pendiente',
+                    status: 'pendiente',
                     recurrence: null,
-                    completedDates: id ? tasks.find(t=>t.id===id).completedDates : []
+                    completedDates: [],
+                    completionDate: null
                 };
+
+                if(id) {
+                    const existingTask = tasks.find(t => t.id === id);
+                    if(existingTask) {
+                        taskData.status = existingTask.status;
+                        taskData.completedDates = existingTask.completedDates;
+                        taskData.completionDate = existingTask.completionDate;
+                    }
+                }
 
                 const recurrenceType = document.getElementById('task-recurrence-type').value;
 
@@ -1355,40 +1449,36 @@
 
                 if (id) {
                     const index = tasks.findIndex(t => t.id === id);
-                    tasks[index] = {...tasks[index], ...taskData};
+                    tasks[index] = taskData;
                 }
                 else tasks.push(taskData);
-                saveTasks();
-                renderAll();
+                await savePharmacyData();
                 closeModal(taskModal);
             });
 
-            document.getElementById('delete-task-btn').addEventListener('click', () => {
+            document.getElementById('delete-task-btn').addEventListener('click', async () => {
                 const id = parseInt(document.getElementById('task-id').value);
                 tasks = tasks.filter(t => t.id !== id);
-                saveTasks();
-                renderAll();
+                await savePharmacyData();
                 closeModal(taskModal);
             });
             
-            document.getElementById('toggle-status-btn').addEventListener('click', () => {
+            document.getElementById('toggle-status-btn').addEventListener('click', async () => {
                 const id = parseInt(document.getElementById('task-id').value);
                 const instanceDate = document.getElementById('task-instance-date').value;
                 const task = tasks.find(t => t.id === id);
 
                 if (!task) return;
 
-                // Handle flexible, non-recurrent tasks
                 if (task.type === 'flexible' && !task.recurrence) {
                     if (task.status === 'pendiente') {
                         task.status = 'completada';
-                        task.completionDate = instanceDate; // FIX: Use the specific day it was completed on
+                        task.completionDate = instanceDate;
                     } else {
                         task.status = 'pendiente';
                         task.completionDate = null;
                     }
                 }
-                // Handle recurrent tasks (both 'recurrente' and 'flexible' types)
                 else if (task.recurrence) {
                     if (instanceDate) {
                         const dateIndex = task.completedDates.indexOf(instanceDate);
@@ -1399,20 +1489,17 @@
                         }
                     }
                 }
-                // Handle all other non-recurrent tasks (puntual, inaplazable, anual)
                 else {
                     if (task.status === 'pendiente') {
                         task.status = 'completada';
-                        task.completionDate = toISODateString(new Date()); // Using today's date is fine for these
+                        task.completionDate = toISODateString(new Date());
                     } else {
                         task.status = 'pendiente';
                         task.completionDate = null;
                     }
                 }
-
-                saveTasks();
-                renderAll();
-                openModal(task, instanceDate); // Re-open modal to reflect changes
+                await savePharmacyData();
+                openModal(task, instanceDate);
             });
         };
 
