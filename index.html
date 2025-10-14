@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestor de Tareas de Farmacia (Avanzado)</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Gestor de Tareas Multi-Farmacia</title>
+    <script src="https://cdn-tailwindcss.vercel.app/"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
@@ -26,12 +26,19 @@
             from { transform: translateY(0); opacity: 1; }
             to { transform: translateY(100%); opacity: 0; }
         }
+        .app-locked .protected-control, .app-locked .calendar-grid > div, .app-locked #employee-list button {
+            pointer-events: none;
+            opacity: 0.7;
+        }
+        .app-locked .protected-control {
+             cursor: not-allowed;
+        }
         @media print {
             body {
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
-            aside, button, #toast-container, #taskModal, #completedTasksModal, #prev-month, #next-month, #clear-filters-btn {
+            aside, button, #toast-container, #taskModal, #completedTasksModal, #passwordModal, #changePasswordModal, #managePharmaciesModal, #prev-month, #next-month, #clear-filters-btn, #login-screen {
                 display: none !important;
             }
             #app, main {
@@ -78,19 +85,56 @@
         }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-800">
+<body class="bg-gray-100 text-gray-800">
 
-    <!-- Contenedor Principal -->
-    <div id="app" class="flex flex-col lg:flex-row h-screen">
+    <!-- Pantalla de Login -->
+    <div id="login-screen" class="flex items-center justify-center h-screen bg-gray-100">
+        <div class="w-full max-w-md bg-white p-8 rounded-xl shadow-lg">
+            <h1 class="text-3xl font-bold text-center text-blue-700 mb-2">Gestor de Tareas</h1>
+            <p class="text-center text-gray-500 mb-8">Acceso a Farmacias</p>
+            <form id="login-form">
+                <div class="mb-4">
+                    <label for="pharmacy-select" class="block text-sm font-medium text-gray-700 mb-1">Seleccionar Farmacia</label>
+                    <select id="pharmacy-select" class="w-full border-gray-300 rounded-lg shadow-sm" required>
+                        <!-- Opciones de farmacia se cargarán aquí -->
+                    </select>
+                </div>
+                <div class="mb-6">
+                    <label for="login-password" class="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+                    <input type="password" id="login-password" class="w-full border-gray-300 rounded-lg shadow-sm" required>
+                </div>
+                 <p id="login-error" class="text-red-500 text-sm text-center mt-2 h-4 mb-4"></p>
+                <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-blue-700 transition-colors">
+                    Entrar
+                </button>
+            </form>
+             <p id="initial-setup-message" class="hidden text-center text-sm text-gray-500 mt-4">
+                Primer inicio detectado. La primera contraseña que establezcas será la del Administrador.
+            </p>
+        </div>
+    </div>
+
+    <!-- Contenedor Principal de la App (inicialmente oculto) -->
+    <div id="app" class="hidden flex-col lg:flex-row h-screen">
 
         <!-- Panel Lateral (Información y Controles) -->
         <aside class="w-full lg:w-1/3 xl:w-1/4 p-6 bg-white border-r border-gray-200 flex flex-col space-y-6 overflow-y-auto">
-            <header>
-                <h1 class="text-2xl font-bold text-blue-700">Gestor de Tareas</h1>
-                <p class="text-gray-500">Farmacia Trébol</p>
+            <header class="flex justify-between items-start">
+                <div>
+                    <h1 id="pharmacy-name-header" class="text-2xl font-bold text-blue-700"></h1>
+                    <p class="text-gray-500">Planificador Mensual</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="lock-btn" class="p-2 rounded-full hover:bg-gray-200 transition-colors">
+                        <!-- Icono de candado se insertará aquí -->
+                    </button>
+                    <button id="logout-btn" title="Salir" class="p-2 rounded-full hover:bg-gray-200 transition-colors">
+                        <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    </button>
+                </div>
             </header>
 
-            <button id="addTaskBtn" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-blue-700 transition-colors duration-300">
+            <button id="addTaskBtn" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-blue-700 transition-colors duration-300 protected-control">
                 Añadir Nueva Tarea
             </button>
              <button id="review-completed-btn" class="w-full bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-lg shadow-sm hover:bg-gray-300 transition-colors duration-300">
@@ -134,7 +178,7 @@
             </div>
 
             <!-- Sección de Gestión de Empleados -->
-            <div>
+            <div class="protected-control">
                 <h2 class="text-lg font-semibold mb-3 border-b pb-2">Gestionar Empleados</h2>
                 <form id="add-employee-form" class="flex gap-2 mb-3">
                     <input type="text" id="new-employee-name" placeholder="Nombre del empleado" class="w-full border-gray-300 rounded-lg shadow-sm text-sm" required>
@@ -145,10 +189,22 @@
                 </div>
             </div>
             
+            <!-- Seguridad -->
+            <div class="protected-control">
+                 <h2 class="text-lg font-semibold mb-3 border-b pb-2">Seguridad</h2>
+                 <button id="change-password-btn" class="w-full text-sm text-blue-600 hover:underline text-left">Cambiar Contraseña</button>
+            </div>
+
+            <!-- Admin -->
+            <div id="admin-controls" class="hidden protected-control">
+                <h2 class="text-lg font-semibold mb-3 border-b pb-2">Administración</h2>
+                <button id="manage-pharmacies-btn" class="w-full text-sm text-blue-600 hover:underline text-left">Gestionar Farmacias</button>
+           </div>
+            
         </aside>
 
         <!-- Área Principal (Calendario) -->
-        <main class="flex-1 p-6 flex flex-col">
+        <main class="flex-1 p-6 flex flex-col bg-gray-50">
             <!-- Cabecera del Calendario -->
             <div class="flex items-center justify-between mb-4">
                 <button id="prev-month" class="p-2 rounded-full hover:bg-gray-200 transition-colors">
@@ -198,18 +254,31 @@
                         </select>
                     </div>
                     <div id="recurrence-container" class="hidden">
-                         <fieldset>
-                            <legend class="block text-sm font-medium text-gray-700 mb-2">Repetir los días</legend>
-                            <div id="task-recurrence-days" class="grid grid-cols-3 sm:grid-cols-4 gap-2 text-sm">
-                                <label class="flex items-center space-x-2 p-2 border rounded-md"><input type="checkbox" value="1"><span>Lun</span></label>
-                                <label class="flex items-center space-x-2 p-2 border rounded-md"><input type="checkbox" value="2"><span>Mar</span></label>
-                                <label class="flex items-center space-x-2 p-2 border rounded-md"><input type="checkbox" value="3"><span>Mié</span></label>
-                                <label class="flex items-center space-x-2 p-2 border rounded-md"><input type="checkbox" value="4"><span>Jue</span></label>
-                                <label class="flex items-center space-x-2 p-2 border rounded-md"><input type="checkbox" value="5"><span>Vie</span></label>
-                                <label class="flex items-center space-x-2 p-2 border rounded-md"><input type="checkbox" value="6"><span>Sáb</span></label>
-                                <label class="flex items-center space-x-2 p-2 border rounded-md"><input type="checkbox" value="0"><span>Dom</span></label>
-                            </div>
-                        </fieldset>
+                         <div class="mb-2">
+                            <label for="task-recurrence-type" class="block text-sm font-medium text-gray-700 mb-1">Frecuencia</label>
+                            <select id="task-recurrence-type" class="w-full border-gray-300 rounded-lg shadow-sm">
+                                <option value="weekly">Semanal</option>
+                                <option value="monthly">Mensual</option>
+                            </select>
+                        </div>
+                        <div id="recurrence-weekly-container">
+                             <fieldset>
+                                <legend class="block text-sm font-medium text-gray-700 mb-2">Repetir los días</legend>
+                                <div id="task-recurrence-days" class="grid grid-cols-3 sm:grid-cols-4 gap-2 text-sm">
+                                    <label class="flex items-center space-x-2 p-2 border rounded-md"><input type="checkbox" value="1"><span>Lun</span></label>
+                                    <label class="flex items-center space-x-2 p-2 border rounded-md"><input type="checkbox" value="2"><span>Mar</span></label>
+                                    <label class="flex items-center space-x-2 p-2 border rounded-md"><input type="checkbox" value="3"><span>Mié</span></label>
+                                    <label class="flex items-center space-x-2 p-2 border rounded-md"><input type="checkbox" value="4"><span>Jue</span></label>
+                                    <label class="flex items-center space-x-2 p-2 border rounded-md"><input type="checkbox" value="5"><span>Vie</span></label>
+                                    <label class="flex items-center space-x-2 p-2 border rounded-md"><input type="checkbox" value="6"><span>Sáb</span></label>
+                                    <label class="flex items-center space-x-2 p-2 border rounded-md"><input type="checkbox" value="0"><span>Dom</span></label>
+                                </div>
+                            </fieldset>
+                        </div>
+                        <div id="recurrence-monthly-container" class="hidden">
+                            <label for="task-recurrence-day-month" class="block text-sm font-medium text-gray-700 mb-1">Día del mes</label>
+                            <input type="number" id="task-recurrence-day-month" min="1" max="31" class="w-full border-gray-300 rounded-lg shadow-sm" placeholder="Ej: 15">
+                        </div>
                     </div>
                 </div>
 
@@ -264,6 +333,70 @@
         </div>
     </div>
 
+    <!-- Modal de Contraseña (Genérico para desbloquear) -->
+    <div id="passwordModal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-8 transform transition-all scale-95 opacity-0">
+            <h2 class="text-2xl font-bold mb-6 text-center">Desbloquear</h2>
+            <form id="password-form">
+                <p class="text-center text-gray-600 mb-4">Introduce la contraseña para hacer cambios.</p>
+                <input type="password" id="password-input" class="w-full border-gray-300 rounded-lg shadow-sm text-center" required>
+                <p id="password-error" class="text-red-500 text-sm text-center mt-2 h-4"></p>
+                <div class="flex items-center space-x-4 mt-6">
+                    <button type="button" id="cancel-password-btn" class="w-full px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Cancelar</button>
+                    <button type="submit" class="w-full px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">Desbloquear</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Cambiar Contraseña -->
+    <div id="changePasswordModal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-8 transform transition-all scale-95 opacity-0">
+            <h2 id="change-password-title" class="text-2xl font-bold mb-6">Cambiar Contraseña</h2>
+            <form id="change-password-form">
+                <div class="mb-4">
+                    <label for="current-password" class="block text-sm font-medium text-gray-700 mb-1">Contraseña Actual</label>
+                    <input type="password" id="current-password" class="w-full border-gray-300 rounded-lg shadow-sm" required>
+                </div>
+                <div class="mb-4">
+                    <label for="new-password" class="block text-sm font-medium text-gray-700 mb-1">Nueva Contraseña</label>
+                    <input type="password" id="new-password" class="w-full border-gray-300 rounded-lg shadow-sm" required>
+                </div>
+                 <div class="mb-4 hidden" id="admin-reset-container">
+                    <label for="admin-reset-pharmacy-select" class="block text-sm font-medium text-gray-700 mb-1">Resetear contraseña de Gerente para:</label>
+                    <select id="admin-reset-pharmacy-select" class="w-full border-gray-300 rounded-lg shadow-sm"></select>
+                </div>
+                <p id="change-password-error" class="text-red-500 text-sm mt-2 h-4"></p>
+                <div class="flex items-center space-x-4 mt-6">
+                    <button type="button" id="cancel-change-password-btn" class="w-full px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Cancelar</button>
+                    <button type="submit" class="w-full px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal para Gestionar Farmacias (Admin) -->
+    <div id="managePharmaciesModal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-8 transform transition-all scale-95 opacity-0 flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center mb-6">
+                 <h2 class="text-2xl font-bold">Gestionar Farmacias</h2>
+                 <button id="close-manage-pharmacies-modal-btn" class="p-2 rounded-full hover:bg-gray-200">
+                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                 </button>
+            </div>
+            <div id="pharmacy-management-list" class="overflow-y-auto mb-6 flex-1 pr-2">
+                <!-- Lista se generará aquí -->
+            </div>
+            <form id="add-pharmacy-form">
+                <h3 class="text-lg font-semibold mb-3 border-t pt-4">Añadir Nueva Farmacia</h3>
+                <div class="flex gap-2">
+                    <input type="text" id="new-pharmacy-name" placeholder="Nombre de la nueva farmacia" class="w-full border-gray-300 rounded-lg shadow-sm" required>
+                    <button type="submit" class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">Añadir</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Contenedor de Notificaciones (Toast) -->
     <div id="toast-container" class="fixed bottom-0 right-0 p-6 space-y-3 z-50 w-full max-w-sm"></div>
 
@@ -271,27 +404,15 @@
     document.addEventListener('DOMContentLoaded', () => {
         // --- ESTADO Y DATOS ---
         let currentDate = new Date();
-        let tasks = JSON.parse(localStorage.getItem('pharmacyTasks')) || [
-             { id: 1, title: 'Revisión Caducidades', type: 'recurrente', dueDate: null, startDate: null, assignedTo: 2, estimatedTime: 30, status: 'pendiente', recurrence: { days: ["1","3","5"] }, completedDates: [] },
-             { id: 2, title: 'Pedido Semanal', type: 'inaplazable', dueDate: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split('T')[0], startDate: null, assignedTo: 1, estimatedTime: 90, status: 'completada', recurrence: null, completionDate: new Date().toISOString().split('T')[0], completedDates: [] },
-             { id: 3, title: 'Limpieza neveras', type: 'flexible', dueDate: new Date(new Date().setDate(new Date().getDate() + 8)).toISOString().split('T')[0], startDate: new Date(new Date().setDate(new Date().getDate() + 3)).toISOString().split('T')[0], assignedTo: 3, estimatedTime: 45, status: 'pendiente', recurrence: null, completedDates: [] },
-             { id: 4, title: 'Inventario Anual', type: 'anual', dueDate: '2025-10-31', startDate: '2025-10-25', assignedTo: 1, estimatedTime: 240, status: 'pendiente', recurrence: null, completedDates: [] }
-        ];
+        let tasks = [];
+        let employees = [];
+        let isLocked = true;
         
-        // Data migration for older versions
-        tasks.forEach(t => {
-            if (!t.completedDates) t.completedDates = [];
-            if (t.recurrence && t.recurrence.day && !t.recurrence.days) {
-                t.recurrence.days = [t.recurrence.day];
-                delete t.recurrence.day;
-            }
-        });
-
-        let employees = JSON.parse(localStorage.getItem('pharmacyEmployees')) || [ 
-            { id: 1, name: 'Ana García' }, 
-            { id: 2, name: 'Luis Pérez' }, 
-            { id: 3, name: 'Carla Ruiz' } 
-        ];
+        // --- ESTADO GLOBAL DE LA APP ---
+        let currentPharmacyId = null;
+        let isAdminSession = false;
+        let allPharmacies = [];
+        let allPasswords = {};
 
         const employeeColorPalette = [
             { bg: 'bg-blue-100', text: 'text-blue-800' },
@@ -299,7 +420,9 @@
             { bg: 'bg-yellow-100', text: 'text-yellow-800' },
             { bg: 'bg-purple-100', text: 'text-purple-800' },
             { bg: 'bg-pink-100', text: 'text-pink-800' },
-            { bg: 'bg-indigo-100', text: 'text-indigo-800' }
+            { bg: 'bg-indigo-100', text: 'text-indigo-800' },
+            { bg: 'bg-red-100', text: 'text-red-800' },
+            { bg: 'bg-teal-100', text: 'text-teal-800' }
         ];
         const defaultEmployeeColor = { bg: 'bg-gray-100', text: 'text-gray-800' };
         const taskTypeBorders = { 
@@ -312,11 +435,19 @@
         let filters = { employee: 'all', type: 'all' };
 
         // --- SELECTORES DEL DOM ---
+        const loginScreen = document.getElementById('login-screen');
+        const appContainer = document.getElementById('app');
+        const lockBtn = document.getElementById('lock-btn');
+        const logoutBtn = document.getElementById('logout-btn');
         const calendarGrid = document.getElementById('calendar-grid');
         const currentMonthYearEl = document.getElementById('current-month-year');
         const taskModal = document.getElementById('taskModal');
         const taskForm = document.getElementById('task-form');
         const toastContainer = document.getElementById('toast-container');
+        const taskRecurrenceType = document.getElementById('task-recurrence-type');
+        const recurrenceWeeklyContainer = document.getElementById('recurrence-weekly-container');
+        const recurrenceMonthlyContainer = document.getElementById('recurrence-monthly-container');
+        const pharmacyNameHeader = document.getElementById('pharmacy-name-header');
         // Filtros y reportes
         const filterEmployeeSelect = document.getElementById('filter-employee');
         const filterTypeSelect = document.getElementById('filter-type');
@@ -331,10 +462,81 @@
         const completedTasksListEl = document.getElementById('completed-tasks-list');
         const closeCompletedModalBtn = document.getElementById('close-completed-modal-btn');
         const printViewBtn = document.getElementById('print-view-btn');
+        // Login & Seguridad
+        const loginForm = document.getElementById('login-form');
+        const pharmacySelect = document.getElementById('pharmacy-select');
+        const passwordModal = document.getElementById('passwordModal');
+        const passwordForm = document.getElementById('password-form');
+        const changePasswordModal = document.getElementById('changePasswordModal');
+        const changePasswordForm = document.getElementById('change-password-form');
+        const changePasswordBtn = document.getElementById('change-password-btn');
+        // Admin
+        const adminControls = document.getElementById('admin-controls');
+        const managePharmaciesBtn = document.getElementById('manage-pharmacies-btn');
+        const managePharmaciesModal = document.getElementById('managePharmaciesModal');
+        const closeManagePharmaciesModalBtn = document.getElementById('close-manage-pharmacies-modal-btn');
+        const addPharmacyForm = document.getElementById('add-pharmacy-form');
+        const pharmacyManagementList = document.getElementById('pharmacy-management-list');
+
         
-        // --- FUNCIONES DE GUARDADO ---
-        const saveTasks = () => localStorage.setItem('pharmacyTasks', JSON.stringify(tasks));
-        const saveEmployees = () => localStorage.setItem('pharmacyEmployees', JSON.stringify(employees));
+        // --- FUNCIONES DE GUARDADO Y SEGURIDAD ---
+        const toISODateString = (date) => {
+            if (!date) return null;
+            const d = new Date(date);
+            d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+            return d.toISOString().split('T')[0];
+        };
+
+        const loadAllData = () => {
+            allPharmacies = JSON.parse(localStorage.getItem('multiPharmacy_pharmacies')) || [];
+            allPasswords = JSON.parse(localStorage.getItem('multiPharmacy_passwords')) || {};
+        };
+        
+        const saveAllPharmacies = () => localStorage.setItem('multiPharmacy_pharmacies', JSON.stringify(allPharmacies));
+
+        const generateInitialData = () => {
+            if (allPharmacies.length === 0) {
+                 const pharmacyNames = ["ALBUFERA","ALCORCON","ANTONIO LEYVA","ARANJUEZ","ARGANDA","ARROYO DEL OLIVAR","ATOCHA","AVENIDA BRUSELAS","AVENIDA PUERTO","BENIDORM","BETANZOS","BURJASSOT","CAMPANAR","CANILLEJAS","CARRETERIA","CASTELO","CHAMARTIN","DELICIAS","ESPAÑA","EUROPA","EZEQUIEL SOLANA","FUENGIROLA","FUENLABRADA","GETAFE","GUILLEM DE CASTRO","GUZMAN EL BUENO","HERNANI","LA ELIANA","LAGOH","LEGANES","LUCHANA","MAJADAHONDA","MARIO CABRE","MARQUES DE LA VALDAVIA","MARQUES DE ZAFRA","MARTINEZ DE LA RIVA","MEDITERRANEO","MOLINA DE SEGURA","MONFORTE","MONTEOLIVETE","MORATALAZ","MOSTOLES","MOSTOLES SOTO","NIZA","NOBLEJAS","OPORTO","ORENSE","PARLA ESTE","PASEO DE EXTREMADURA","PAU 5, PLAYA SAN JUAN","PEÑALVER","POZUELO","QUIÑON","REQUENA","RETIRO","SAN BLAS","SAN FERNANDO","SAN JAIME","SAN JOSE DE VALDERAS","SAN MARTIN DE LA VEGA","TORREJON","TORRELAGUNA","TORREVIEJA","TRES FORQUES","TRINITAT","URGEL","URQUIJO","USERA","VALDEBEBAS","VALL DE UXO","VALLADOLID","VICTOR DE LA SERNA","VILLAVERDE","XIRIVELLA","ZARZAQUEMADA"];
+                allPharmacies = pharmacyNames.map((name, index) => ({ id: index + 1, name: name }));
+                saveAllPharmacies();
+                document.getElementById('initial-setup-message').classList.remove('hidden');
+            }
+        };
+
+        const loadPharmacyData = (pharmacyId) => {
+            tasks = JSON.parse(localStorage.getItem(`pharmacy-${pharmacyId}-tasks`)) || [];
+            const storedEmployees = JSON.parse(localStorage.getItem(`pharmacy-${pharmacyId}-employees`));
+
+            if (storedEmployees) {
+                employees = storedEmployees;
+            } else {
+                employees = [
+                    { id: 1, name: 'Gerente' },
+                    { id: 2, name: 'Adjunto Gt' },
+                    { id: 3, name: 'Dinamizador Dermo' },
+                    { id: 4, name: 'Equipo 1' },
+                    { id: 5, name: 'Equipo 2' },
+                    { id: 6, name: 'Equipo 3' },
+                    { id: 7, name: 'Equipo 4' },
+                    { id: 8, name: 'Equipo 5' }
+                ];
+                localStorage.setItem(`pharmacy-${pharmacyId}-employees`, JSON.stringify(employees));
+            }
+        };
+
+        const saveTasks = () => localStorage.setItem(`pharmacy-${currentPharmacyId}-tasks`, JSON.stringify(tasks));
+        const saveEmployees = () => localStorage.setItem(`pharmacy-${currentPharmacyId}-employees`, JSON.stringify(employees));
+        const savePasswords = () => localStorage.setItem('multiPharmacy_passwords', JSON.stringify(allPasswords));
+
+        const hashCode = (str) => {
+          let hash = 0;
+          for (let i = 0, len = str.length; i < len; i++) {
+            let chr = str.charCodeAt(i);
+            hash = (hash << 5) - hash + chr;
+            hash |= 0; 
+          }
+          return hash.toString();
+        };
 
         // --- FUNCIONES AUXILIARES DE COLOR ---
         const getEmployeeColor = (employeeId) => {
@@ -345,10 +547,12 @@
             return employeeColorPalette[employeeIndex % employeeColorPalette.length];
         };
 
-        // --- FUNCIONES DE RENDERIZADO ---
+        // --- FUNCIONES DE RENDERIZADO Y UI ---
         const renderAll = () => {
             renderCalendar();
             renderEmployeeUI();
+            updateLockUI();
+            updateAdminUI();
         };
 
         const renderCalendar = () => {
@@ -366,10 +570,10 @@
             const filteredTasks = tasks.filter(task => (filters.employee === 'all' || task.assignedTo == filters.employee) && (filters.type === 'all' || task.type === filters.type));
 
             for (let day = 1; day <= daysInMonth; day++) {
-                const date = new Date(year, month, day);
-                const dateString = date.toISOString().split('T')[0];
+                const date = new Date(Date.UTC(year, month, day));
+                const dateString = toISODateString(date);
                 const dayEl = document.createElement('div');
-                dayEl.className = 'border border-gray-200 bg-white rounded-lg p-2 flex flex-col min-h-[120px]';
+                dayEl.className = 'border border-gray-200 bg-white rounded-lg p-2 flex flex-col min-h-[120px] cursor-pointer';
                 
                 const today = new Date();
                 const dayNumberClass = date.toDateString() === today.toDateString() ? 'font-bold text-blue-600' : 'text-sm';
@@ -386,13 +590,17 @@
                     const typeBorderColor = taskTypeBorders[task.type] || 'border-gray-400';
                     
                     let isCompletedToday = false;
-                    if (task.type === 'recurrente') {
-                        isCompletedToday = task.completedDates.includes(dateString);
+                    if (task.recurrence || task.type === 'flexible') {
+                         if (task.type === 'flexible' && !task.recurrence) {
+                            isCompletedToday = task.status === 'completada';
+                        } else {
+                            isCompletedToday = task.completedDates.includes(dateString);
+                        }
                     } else {
                         isCompletedToday = task.status === 'completada';
                     }
 
-                    taskEl.className = `taskEl text-xs p-1.5 rounded-md cursor-pointer border-l-4 font-medium ${employeeColor.bg} ${employeeColor.text} ${typeBorderColor}`;
+                    taskEl.className = `taskEl text-xs p-1.5 rounded-md border-l-4 font-medium ${employeeColor.bg} ${employeeColor.text} ${typeBorderColor}`;
 
                     if (isCompletedToday) {
                         taskEl.classList.add('opacity-60');
@@ -411,15 +619,30 @@
         };
 
         const getTasksForDate = (date, taskList) => {
-            const dateString = date.toISOString().split('T')[0];
-            const dayOfWeek = date.getDay();
+            const dateString = toISODateString(date);
+            const dayOfMonth = date.getUTCDate();
+            const dayOfWeek = date.getUTCDay();
             return taskList.filter(task => {
-                if (task.type === 'recurrente' && task.recurrence && task.recurrence.days) {
-                    return task.recurrence.days.includes(String(dayOfWeek)) && new Date(date).getMonth() === currentDate.getMonth();
+                if (task.type === 'flexible' && task.recurrence?.type === 'monthly') {
+                    return dayOfMonth >= parseInt(task.startDate) && dayOfMonth <= parseInt(task.dueDate);
                 }
-                if (task.type === 'flexible' || task.type === 'anual') {
+                
+                if (task.type === 'recurrente' && task.recurrence) {
+                    if (task.recurrence.type === 'weekly' && task.recurrence.days) {
+                        return task.recurrence.days.includes(String(dayOfWeek));
+                    }
+                    if (task.recurrence.type === 'monthly' && task.recurrence.dayOfMonth) {
+                        return dayOfMonth == task.recurrence.dayOfMonth;
+                    }
+                }
+
+                if ((task.type === 'flexible' || task.type === 'anual') && !task.recurrence) {
+                     if (task.status === 'completada') {
+                        return dateString === task.completionDate;
+                    }
                     return dateString >= task.startDate && dateString <= task.dueDate;
                 }
+                
                 return task.dueDate === dateString;
             });
         };
@@ -432,7 +655,6 @@
         };
 
         const renderEmployeeUI = () => {
-            // Limpiar y rellenar la lista de empleados
             employeeListEl.innerHTML = '';
             employees.forEach(emp => {
                 const empEl = document.createElement('div');
@@ -448,7 +670,6 @@
                 employeeListEl.appendChild(empEl);
             });
 
-            // Limpiar y rellenar los selects
             const assignedToSelect = document.getElementById('task-assigned-to');
             assignedToSelect.innerHTML = '<option value="">Sin asignar</option>';
             filterEmployeeSelect.innerHTML = '<option value="all">Todos</option>';
@@ -458,7 +679,6 @@
             });
             filterEmployeeSelect.value = filters.employee;
 
-            // Renderizar el reporte
             employeeReportEl.innerHTML = '';
             employees.forEach(employee => {
                 let totalTime = 0;
@@ -468,24 +688,65 @@
                 const daysInMonth = new Date(year, month + 1, 0).getDate();
 
                 tasks.filter(t => t.assignedTo === employee.id).forEach(task => {
-                    if (task.type === 'recurrente' && task.recurrence && task.recurrence.days) {
-                        for (let day = 1; day <= daysInMonth; day++) {
-                            const date = new Date(year, month, day);
-                            if (task.recurrence.days.includes(String(date.getDay()))) {
+                    if (task.type === 'flexible' && task.recurrence?.type === 'monthly') {
+                        totalTime += task.estimatedTime || 0;
+                        const completedThisMonth = task.completedDates.some(dateStr => {
+                            const completedMonth = parseInt(dateStr.split('-')[1], 10) - 1;
+                            const completedYear = parseInt(dateStr.split('-')[0], 10);
+                            return completedMonth === month && completedYear === year;
+                        });
+
+                        if (completedThisMonth) {
+                             completedTime += task.estimatedTime || 0;
+                        }
+
+                    } else if (task.type === 'recurrente' && task.recurrence) {
+                        if (task.recurrence.type === 'weekly' && task.recurrence.days) {
+                            for (let day = 1; day <= daysInMonth; day++) {
+                                const date = new Date(Date.UTC(year, month, day));
+                                if (task.recurrence.days.includes(String(date.getUTCDay()))) {
+                                    totalTime += task.estimatedTime;
+                                    const dateString = toISODateString(date);
+                                    if (task.completedDates.includes(dateString)) {
+                                        completedTime += task.estimatedTime;
+                                    }
+                                }
+                            }
+                        } else if (task.recurrence.type === 'monthly' && task.recurrence.dayOfMonth) {
+                            const dayOfMonth = parseInt(task.recurrence.dayOfMonth);
+                            if (dayOfMonth > 0 && dayOfMonth <= daysInMonth) {
                                 totalTime += task.estimatedTime;
-                                const dateString = date.toISOString().split('T')[0];
+                                const date = new Date(Date.UTC(year, month, dayOfMonth));
+                                const dateString = toISODateString(date);
                                 if (task.completedDates.includes(dateString)) {
                                     completedTime += task.estimatedTime;
                                 }
                             }
                         }
-                    } else {
-                         const taskMonth = new Date(task.dueDate).getMonth();
-                         if(taskMonth === month) {
-                            totalTime += task.estimatedTime;
-                            if(task.status === 'completada'){
-                                completedTime += task.estimatedTime;
+                    } else if ((task.type === 'flexible' || task.type === 'anual') && !task.recurrence) {
+                        const monthStartStr = toISODateString(new Date(Date.UTC(year, month, 1)));
+                        const monthEndStr = toISODateString(new Date(Date.UTC(year, month + 1, 0)));
+
+                        if (task.startDate <= monthEndStr && task.dueDate >= monthStartStr) {
+                            totalTime += task.estimatedTime || 0;
+                            if (task.status === 'completada' && task.completionDate) {
+                                const completionMonth = parseInt(task.completionDate.split('-')[1], 10) - 1;
+                                const completionYear = parseInt(task.completionDate.split('-')[0], 10);
+                                if (completionMonth === month && completionYear === year) {
+                                    completedTime += task.estimatedTime || 0;
+                                }
                             }
+                        }
+                    } else { 
+                         if (task.dueDate) {
+                             const taskMonth = parseInt(task.dueDate.split('-')[1], 10) - 1;
+                             const taskYear = parseInt(task.dueDate.split('-')[0], 10);
+                             if(taskMonth === month && taskYear === year) {
+                                totalTime += task.estimatedTime || 0;
+                                if(task.status === 'completada'){
+                                    completedTime += task.estimatedTime || 0;
+                                }
+                             }
                          }
                     }
                 });
@@ -502,12 +763,33 @@
             });
         };
 
+        const updateLockUI = () => {
+            const lockedIcon = `<svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>`;
+            const unlockedIcon = `<svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg>`;
+            lockBtn.innerHTML = isLocked ? lockedIcon : unlockedIcon;
+            if (isLocked) {
+                appContainer.classList.add('app-locked');
+            } else {
+                appContainer.classList.remove('app-locked');
+            }
+        };
+        
+        const updateAdminUI = () => {
+            if(isAdminSession) {
+                adminControls.classList.remove('hidden');
+            } else {
+                adminControls.classList.add('hidden');
+            }
+        };
+
         // --- GESTIÓN DE EMPLEADOS ---
         const handleAddNewEmployee = (e) => {
             e.preventDefault();
+            if (isLocked) { promptForPassword(); return; }
             const name = newEmployeeNameInput.value.trim();
             if (name) {
-                employees.push({ id: Date.now(), name: name });
+                const newId = employees.length > 0 ? Math.max(...employees.map(emp => emp.id)) + 1 : 1;
+                employees.push({ id: newId, name: name });
                 saveEmployees();
                 renderAll();
                 newEmployeeNameInput.value = '';
@@ -515,6 +797,7 @@
         };
 
         const handleDeleteEmployee = (id) => {
+            if (isLocked) { promptForPassword(); return; }
             if (confirm('¿Seguro que quieres eliminar este empleado? Las tareas que tenga asignadas quedarán sin asignar.')) {
                 employees = employees.filter(emp => emp.id !== id);
                 tasks.forEach(task => {
@@ -530,6 +813,7 @@
 
         // --- MODALES ---
         const openModal = (task = null, dateString = null) => {
+            if(isLocked) { promptForPassword(); return; }
             const modalContent = taskModal.querySelector('div');
             taskForm.reset();
             document.querySelectorAll('#task-recurrence-days input').forEach(cb => cb.checked = false);
@@ -537,16 +821,29 @@
             if(dateString) document.getElementById('task-instance-date').value = dateString;
             
             if (task) { // Editar
+                document.getElementById('task-type').value = task.type;
+                 if (task.recurrence) {
+                    document.getElementById('task-recurrence-type').value = task.recurrence.type || 'weekly';
+                }
+                updateModalUI(); 
+                
                 document.getElementById('modal-title').textContent = 'Editar Tarea';
-                Object.keys(task).forEach(key => {
-                    const el = document.getElementById(`task-${key.toLowerCase().replace('estimatedtime', 'time').replace('assignedto', 'assigned-to')}`);
-                    if (el) el.value = task[key] || '';
-                });
-                if (task.recurrence && task.recurrence.days) {
-                    task.recurrence.days.forEach(day => {
-                        const cb = document.querySelector(`#task-recurrence-days input[value="${day}"]`);
-                        if (cb) cb.checked = true;
-                    });
+                document.getElementById('task-id').value = task.id;
+                document.getElementById('task-title').value = task.title;
+                document.getElementById('task-start-date').value = task.startDate || '';
+                document.getElementById('task-due-date').value = task.dueDate || '';
+                document.getElementById('task-assigned-to').value = task.assignedTo || '';
+                document.getElementById('task-time').value = task.estimatedTime || '';
+                
+                if (task.recurrence) {
+                     if (task.recurrence.type === 'monthly' && task.type === 'recurrente') {
+                        document.getElementById('task-recurrence-day-month').value = task.recurrence.dayOfMonth;
+                    } else if (task.recurrence.type === 'weekly' && task.recurrence.days) {
+                         task.recurrence.days.forEach(day => {
+                            const cb = document.querySelector(`#task-recurrence-days input[value="${day}"]`);
+                            if (cb) cb.checked = true;
+                        });
+                    }
                 }
                 
                 document.getElementById('delete-task-btn').classList.remove('hidden');
@@ -554,8 +851,12 @@
                 toggleBtn.classList.remove('hidden');
 
                 let isCompletedToday = false;
-                if(task.type === 'recurrente') {
-                    isCompletedToday = dateString && task.completedDates.includes(dateString);
+                 if (task.recurrence || task.type === 'flexible') {
+                     if (task.type === 'flexible' && !task.recurrence) {
+                        isCompletedToday = task.status === 'completada';
+                    } else {
+                        isCompletedToday = dateString && task.completedDates.includes(dateString);
+                    }
                 } else {
                     isCompletedToday = task.status === 'completada';
                 }
@@ -566,6 +867,7 @@
             } else { // Crear
                 document.getElementById('modal-title').textContent = 'Nueva Tarea';
                 document.getElementById('task-status').value = 'pendiente';
+                updateModalUI();
                 if(dateString) {
                     document.getElementById('task-start-date').value = dateString;
                     document.getElementById('task-due-date').value = dateString;
@@ -574,7 +876,6 @@
                 document.getElementById('toggle-status-btn').classList.add('hidden');
             }
 
-            updateModalUI();
             taskModal.classList.remove('hidden');
             taskModal.classList.add('flex');
             setTimeout(() => modalContent.classList.remove('scale-95', 'opacity-0'), 50);
@@ -588,12 +889,48 @@
 
         const updateModalUI = () => {
             const type = document.getElementById('task-type').value;
-            document.getElementById('recurrence-container').classList.toggle('hidden', type !== 'recurrente');
+            const recurrenceType = document.getElementById('task-recurrence-type').value;
+
+            const canBeRecurrent = type === 'recurrente' || type === 'flexible';
+            document.getElementById('recurrence-container').classList.toggle('hidden', !canBeRecurrent);
+            
             document.getElementById('dates-container').classList.toggle('hidden', type === 'recurrente');
-            const isRange = type === 'flexible' || type === 'anual';
-            document.getElementById('start-date-container').style.display = isRange ? 'block' : 'none';
-            document.getElementById('due-date-container').querySelector('label').textContent = isRange ? 'Fecha Fin' : 'Fecha';
-            if(!isRange) document.getElementById('task-start-date').value = document.getElementById('task-due-date').value;
+            
+            if (canBeRecurrent) {
+                const isWeekly = recurrenceType === 'weekly';
+                recurrenceWeeklyContainer.classList.toggle('hidden', !isWeekly || type === 'flexible');
+                recurrenceMonthlyContainer.classList.toggle('hidden', isWeekly || type === 'flexible');
+            }
+
+            const startDateContainer = document.getElementById('start-date-container');
+            const dueDateContainer = document.getElementById('due-date-container');
+            const startDateInput = document.getElementById('task-start-date');
+            const dueDateInput = document.getElementById('task-due-date');
+            const startDateLabel = startDateContainer.querySelector('label');
+            const dueDateLabel = dueDateContainer.querySelector('label');
+
+            if (startDateInput.type !== 'date') {
+                startDateInput.type = 'date';
+                ['min', 'max', 'placeholder'].forEach(attr => startDateInput.removeAttribute(attr));
+                dueDateInput.type = 'date';
+                ['min', 'max', 'placeholder'].forEach(attr => dueDateInput.removeAttribute(attr));
+            }
+
+            if (type === 'flexible' && recurrenceType === 'monthly') {
+                startDateInput.type = 'number';
+                dueDateInput.type = 'number';
+                startDateInput.min = 1; startDateInput.max = 31;
+                dueDateInput.min = 1; dueDateInput.max = 31;
+                startDateLabel.textContent = 'Día de Inicio';
+                dueDateLabel.textContent = 'Día de Fin';
+                startDateContainer.style.display = 'block';
+            } else {
+                startDateLabel.textContent = 'Fecha Inicio';
+                dueDateLabel.textContent = 'Fecha Fin';
+                const isRange = type === 'flexible' || type === 'anual';
+                startDateContainer.style.display = isRange ? 'block' : 'none';
+                dueDateLabel.textContent = isRange ? 'Fecha Fin' : 'Fecha';
+            }
         };
         
         const getEmployeeNameById = (id) => employees.find(e => e.id === id)?.name || 'Sin asignar';
@@ -603,13 +940,13 @@
             let allCompletedInstances = [];
 
             tasks.forEach(task => {
-                if (task.status === 'completada' && task.type !== 'recurrente') {
+                if (task.status === 'completada' && !task.recurrence) {
                     allCompletedInstances.push({
                         title: task.title,
                         assignedTo: getEmployeeNameById(task.assignedTo),
                         completionDate: new Date(task.completionDate || task.dueDate)
                     });
-                } else if (task.type === 'recurrente') {
+                } else if (task.recurrence) {
                     task.completedDates.forEach(dateStr => {
                         allCompletedInstances.push({
                             title: task.title,
@@ -635,7 +972,7 @@
                             <tr class="border-b">
                                 <td class="p-2 font-medium">${instance.title}</td>
                                 <td class="p-2">${instance.assignedTo}</td>
-                                <td class="p-2">${instance.completionDate.toLocaleDateString()}</td>
+                                <td class="p-2">${new Date(instance.completionDate.getTime() + instance.completionDate.getTimezoneOffset() * 60000).toLocaleDateString()}</td>
                             </tr>
                         `).join('')}
                         </tbody>
@@ -646,18 +983,146 @@
             completedTasksModal.classList.add('flex');
             setTimeout(() => modalContent.classList.remove('scale-95', 'opacity-0'), 50);
         };
+        
+        // --- GESTIÓN DE CONTRASEÑA ---
+        const promptForPassword = () => {
+            const modalContent = passwordModal.querySelector('div');
+            const input = document.getElementById('password-input');
+            const errorEl = document.getElementById('password-error');
+            errorEl.textContent = '';
+            input.value = '';
+
+            passwordModal.classList.remove('hidden');
+            passwordModal.classList.add('flex');
+            setTimeout(() => {
+                modalContent.classList.remove('scale-95', 'opacity-0');
+                input.focus();
+            }, 50);
+        };
+
+        const openChangePasswordModal = () => {
+            if (isLocked) { promptForPassword(); return; }
+            const modalContent = changePasswordModal.querySelector('div');
+            const title = document.getElementById('change-password-title');
+            const adminResetContainer = document.getElementById('admin-reset-container');
+            const adminResetSelect = document.getElementById('admin-reset-pharmacy-select');
+            
+            changePasswordForm.reset();
+            document.getElementById('change-password-error').textContent = '';
+
+            if(isAdminSession) {
+                title.textContent = 'Gestión de Contraseñas (Admin)';
+                adminResetContainer.classList.remove('hidden');
+                adminResetSelect.innerHTML = `<option value="">-- Cambiar mi contraseña de Admin --</option>`;
+                allPharmacies.forEach(p => {
+                    adminResetSelect.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+                });
+            } else {
+                title.textContent = 'Cambiar Contraseña de Gerente';
+                adminResetContainer.classList.add('hidden');
+            }
+
+            changePasswordModal.classList.remove('hidden');
+            changePasswordModal.classList.add('flex');
+            setTimeout(() => {
+                 modalContent.classList.remove('scale-95', 'opacity-0');
+                 document.getElementById('current-password').focus();
+            }, 50);
+        };
+
+        // --- GESTIÓN DE FARMACIAS (ADMIN) ---
+        const openManagePharmaciesModal = () => {
+            const modalContent = managePharmaciesModal.querySelector('div');
+            populatePharmacyManagementList();
+            managePharmaciesModal.classList.remove('hidden');
+            managePharmaciesModal.classList.add('flex');
+            setTimeout(() => modalContent.classList.remove('scale-95', 'opacity-0'), 50);
+        };
+        
+        const populatePharmacyManagementList = () => {
+            pharmacyManagementList.innerHTML = '';
+            allPharmacies.forEach(p => {
+                const item = document.createElement('div');
+                item.className = 'flex justify-between items-center p-2 border-b';
+                item.dataset.pharmacyId = p.id;
+                item.innerHTML = `
+                    <span class="pharmacy-name">${p.name}</span>
+                    <div class="edit-controls hidden">
+                        <input type="text" value="${p.name}" class="border-gray-300 rounded-lg shadow-sm text-sm">
+                        <button class="save-name-btn text-green-600 p-1">Guardar</button>
+                        <button class="cancel-edit-btn text-red-600 p-1">Cancelar</button>
+                    </div>
+                    <button class="edit-name-btn text-blue-600 text-sm">Editar</button>
+                `;
+                pharmacyManagementList.appendChild(item);
+            });
+        };
+        
+        const handlePharmacyManagementClick = (e) => {
+            const target = e.target;
+            const item = target.closest('[data-pharmacy-id]');
+            if (!item) return;
+            const pharmacyId = parseInt(item.dataset.pharmacyId);
+
+            if (target.classList.contains('edit-name-btn')) {
+                item.querySelector('.pharmacy-name').classList.add('hidden');
+                target.classList.add('hidden');
+                item.querySelector('.edit-controls').classList.remove('hidden');
+            }
+            if (target.classList.contains('cancel-edit-btn')) {
+                item.querySelector('.pharmacy-name').classList.remove('hidden');
+                item.querySelector('.edit-name-btn').classList.remove('hidden');
+                item.querySelector('.edit-controls').classList.add('hidden');
+            }
+            if (target.classList.contains('save-name-btn')) {
+                const newName = item.querySelector('input').value.trim();
+                if(newName) {
+                    const pharmacy = allPharmacies.find(p => p.id === pharmacyId);
+                    if(pharmacy) {
+                        pharmacy.name = newName;
+                        saveAllPharmacies();
+                        populatePharmacyManagementList();
+                        populateLoginSelect();
+                         if(currentPharmacyId === pharmacyId) {
+                            pharmacyNameHeader.textContent = newName;
+                        }
+                        showToast('Nombre de farmacia actualizado.', 'success');
+                    }
+                }
+            }
+        };
+
+        const handleAddNewPharmacy = (e) => {
+            e.preventDefault();
+            const newNameInput = document.getElementById('new-pharmacy-name');
+            const newName = newNameInput.value.trim();
+            if (newName) {
+                const newId = allPharmacies.length > 0 ? Math.max(...allPharmacies.map(p => p.id)) + 1 : 1;
+                allPharmacies.push({ id: newId, name: newName });
+                saveAllPharmacies();
+                populatePharmacyManagementList();
+                populateLoginSelect();
+                newNameInput.value = '';
+                showToast('Farmacia añadida con éxito.', 'success');
+            }
+        };
+
 
         // --- NOTIFICACIONES ---
-        const showToast = (message) => {
+        const showToast = (message, type = 'error') => {
+            const colors = {
+                error: 'bg-red-600',
+                success: 'bg-green-600'
+            };
             const toast = document.createElement('div');
-            toast.className = 'toast bg-red-600 text-white font-bold p-4 rounded-lg shadow-lg';
+            toast.className = `toast ${colors[type]} text-white font-bold p-4 rounded-lg shadow-lg`;
             toast.textContent = message;
             toastContainer.appendChild(toast);
             setTimeout(() => toast.remove(), 5500);
         };
 
         const checkDueTasks = () => {
-            const today = new Date().toISOString().split('T')[0];
+            const today = toISODateString(new Date());
             tasks.forEach(task => {
                 if (task.type === 'inaplazable' && task.dueDate === today && task.status === 'pendiente') {
                     showToast(`¡ATENCIÓN! La tarea "${task.title}" vence hoy.`);
@@ -665,8 +1130,45 @@
             });
         };
 
+        const showLoginScreen = () => {
+            loginScreen.classList.remove('hidden');
+            appContainer.classList.add('hidden');
+            appContainer.classList.remove('flex');
+            populateLoginSelect();
+        };
+
+        const populateLoginSelect = () => {
+            pharmacySelect.innerHTML = '';
+            allPharmacies.forEach(p => {
+                pharmacySelect.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+            });
+        };
+
+        const showAppScreen = () => {
+            loginScreen.classList.add('hidden');
+            appContainer.classList.remove('hidden');
+            appContainer.classList.add('flex');
+            const pharmacy = allPharmacies.find(p => p.id === currentPharmacyId);
+            pharmacyNameHeader.textContent = pharmacy ? pharmacy.name : 'Farmacia Desconocida';
+        }
+
         // --- INICIALIZACIÓN Y EVENTOS ---
         const init = () => {
+            loadAllData();
+            generateInitialData();
+            
+            const sessionPharmacyId = sessionStorage.getItem('session_pharmacyId');
+            if(sessionPharmacyId){
+                currentPharmacyId = parseInt(sessionPharmacyId);
+                isAdminSession = sessionStorage.getItem('session_isAdmin') === 'true';
+                isLocked = false;
+                loadPharmacyData(currentPharmacyId);
+                showAppScreen();
+                renderAll();
+            } else {
+                showLoginScreen();
+            }
+
             // Navegación Calendario
             document.getElementById('prev-month').addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() - 1); renderAll(); });
             document.getElementById('next-month').addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() + 1); renderAll(); });
@@ -690,10 +1192,130 @@
             document.getElementById('cancel-btn').addEventListener('click', () => closeModal(taskModal));
             taskModal.addEventListener('click', (e) => { if (e.target === taskModal) closeModal(taskModal); });
             document.getElementById('task-type').addEventListener('change', updateModalUI);
+            taskRecurrenceType.addEventListener('change', updateModalUI);
             reviewCompletedBtn.addEventListener('click', openCompletedModal);
             closeCompletedModalBtn.addEventListener('click', () => closeModal(completedTasksModal));
             completedTasksModal.addEventListener('click', (e) => { if (e.target === completedTasksModal) closeModal(completedTasksModal); });
+            
+            // Login/Logout y Seguridad
+            loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const selectedPharmacyId = parseInt(pharmacySelect.value);
+                const password = document.getElementById('login-password').value;
+                const passHash = hashCode(password);
+                const errorEl = document.getElementById('login-error');
+                errorEl.textContent = '';
 
+                if (!allPasswords.admin) {
+                    allPasswords.admin = passHash;
+                    savePasswords();
+                    showToast('Contraseña de Administrador establecida.', 'success');
+                    document.getElementById('initial-setup-message').classList.add('hidden');
+                }
+
+                const isAdmin = passHash === allPasswords.admin;
+                const isManager = passHash === allPasswords[`manager_${selectedPharmacyId}`];
+
+                if (isAdmin || isManager) {
+                    currentPharmacyId = selectedPharmacyId;
+                    isAdminSession = isAdmin;
+                    isLocked = false;
+                    
+                    sessionStorage.setItem('session_pharmacyId', currentPharmacyId);
+                    sessionStorage.setItem('session_isAdmin', isAdminSession);
+
+                    loadPharmacyData(currentPharmacyId);
+                    showAppScreen();
+                    renderAll();
+                    checkDueTasks();
+                } else {
+                    errorEl.textContent = 'Contraseña incorrecta.';
+                }
+            });
+
+            logoutBtn.addEventListener('click', () => {
+                sessionStorage.removeItem('session_pharmacyId');
+                sessionStorage.removeItem('session_isAdmin');
+                currentPharmacyId = null;
+                isAdminSession = false;
+                isLocked = true;
+                tasks = [];
+                employees = [];
+                showLoginScreen();
+            });
+
+            lockBtn.addEventListener('click', () => {
+                if(isLocked) {
+                    promptForPassword();
+                } else {
+                    isLocked = true;
+                    updateLockUI();
+                }
+            });
+
+            changePasswordBtn.addEventListener('click', openChangePasswordModal);
+            
+            passwordForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const input = document.getElementById('password-input').value;
+                const passHash = hashCode(input);
+                const errorEl = document.getElementById('password-error');
+                
+                const isAdmin = passHash === allPasswords.admin;
+                const isManager = passHash === allPasswords[`manager_${currentPharmacyId}`];
+
+                if(isAdmin || isManager) {
+                    isLocked = false;
+                    isAdminSession = isAdmin; 
+                    sessionStorage.setItem('session_isAdmin', isAdminSession);
+                    updateLockUI();
+                    updateAdminUI();
+                    closeModal(passwordModal);
+                } else {
+                    errorEl.textContent = 'Contraseña incorrecta.';
+                }
+            });
+
+            document.getElementById('cancel-password-btn').addEventListener('click', () => closeModal(passwordModal));
+
+            changePasswordForm.addEventListener('submit', e => {
+                e.preventDefault();
+                const currentPass = document.getElementById('current-password').value;
+                const newPass = document.getElementById('new-password').value;
+                const errorEl = document.getElementById('change-password-error');
+                const resetPharmacyId = document.getElementById('admin-reset-pharmacy-select').value;
+                
+                if (isAdminSession) {
+                    if(hashCode(currentPass) !== allPasswords.admin) {
+                        errorEl.textContent = 'La contraseña de Admin es incorrecta.';
+                        return;
+                    }
+                    if (resetPharmacyId) {
+                        allPasswords[`manager_${resetPharmacyId}`] = hashCode(newPass);
+                        showToast(`Contraseña para ${allPharmacies.find(p=>p.id==resetPharmacyId).name} cambiada.`, 'success');
+                    } else { 
+                        allPasswords.admin = hashCode(newPass);
+                        showToast('Contraseña de Administrador cambiada.', 'success');
+                    }
+                } else {
+                    if(hashCode(currentPass) !== allPasswords[`manager_${currentPharmacyId}`]) {
+                         errorEl.textContent = 'La contraseña actual es incorrecta.';
+                         return;
+                    }
+                    allPasswords[`manager_${currentPharmacyId}`] = hashCode(newPass);
+                    showToast('Contraseña de Gerente cambiada.', 'success');
+                }
+
+                savePasswords();
+                closeModal(changePasswordModal);
+            });
+            document.getElementById('cancel-change-password-btn').addEventListener('click', () => closeModal(changePasswordModal));
+
+            // Admin: Gestión de Farmacias
+            managePharmaciesBtn.addEventListener('click', openManagePharmaciesModal);
+            closeManagePharmaciesModalBtn.addEventListener('click', () => closeModal(managePharmaciesModal));
+            addPharmacyForm.addEventListener('submit', handleAddNewPharmacy);
+            pharmacyManagementList.addEventListener('click', handlePharmacyManagementClick);
 
             // Lógica del formulario de tareas
             taskForm.addEventListener('submit', e => {
@@ -701,26 +1323,40 @@
                 const id = parseInt(document.getElementById('task-id').value);
                 const type = document.getElementById('task-type').value;
                 
-                let recurrence = null;
-                if (type === 'recurrente') {
-                    const days = Array.from(document.querySelectorAll('#task-recurrence-days input:checked')).map(cb => cb.value);
-                    recurrence = { days: days };
-                }
-
                 const taskData = {
                     id: id || Date.now(),
                     title: document.getElementById('task-title').value,
                     type: type,
-                    dueDate: document.getElementById('task-due-date').value,
-                    startDate: type === 'flexible' || type === 'anual' ? document.getElementById('task-start-date').value : document.getElementById('task-due-date').value,
                     assignedTo: parseInt(document.getElementById('task-assigned-to').value) || null,
                     estimatedTime: parseInt(document.getElementById('task-time').value) || 0,
-                    status: document.getElementById('task-status').value || 'pendiente',
-                    recurrence: recurrence,
+                    status: id ? tasks.find(t=>t.id===id).status : 'pendiente',
+                    recurrence: null,
                     completedDates: id ? tasks.find(t=>t.id===id).completedDates : []
                 };
 
-                if (id) tasks[tasks.findIndex(t => t.id === id)] = taskData;
+                const recurrenceType = document.getElementById('task-recurrence-type').value;
+
+                if (type === 'recurrente') {
+                    if (recurrenceType === 'weekly') {
+                        const days = Array.from(document.querySelectorAll('#task-recurrence-days input:checked')).map(cb => cb.value);
+                        taskData.recurrence = { type: 'weekly', days: days };
+                    } else { 
+                        const dayOfMonth = document.getElementById('task-recurrence-day-month').value;
+                        taskData.recurrence = { type: 'monthly', dayOfMonth: dayOfMonth };
+                    }
+                } else if (type === 'flexible' && document.getElementById('recurrence-container').offsetParent !== null && recurrenceType === 'monthly') {
+                    taskData.recurrence = { type: 'monthly' };
+                    taskData.startDate = document.getElementById('task-start-date').value; 
+                    taskData.dueDate = document.getElementById('task-due-date').value; 
+                } else { 
+                     taskData.startDate = (type === 'flexible' || type === 'anual') ? (document.getElementById('task-start-date').value || null) : (document.getElementById('task-due-date').value || null);
+                     taskData.dueDate = document.getElementById('task-due-date').value || null;
+                }
+
+                if (id) {
+                    const index = tasks.findIndex(t => t.id === id);
+                    tasks[index] = {...tasks[index], ...taskData};
+                }
                 else tasks.push(taskData);
                 saveTasks();
                 renderAll();
@@ -740,32 +1376,44 @@
                 const instanceDate = document.getElementById('task-instance-date').value;
                 const task = tasks.find(t => t.id === id);
 
-                if (task) {
-                    if (task.type === 'recurrente') {
-                        if (!instanceDate) return;
+                if (!task) return;
+
+                // Handle flexible, non-recurrent tasks
+                if (task.type === 'flexible' && !task.recurrence) {
+                    if (task.status === 'pendiente') {
+                        task.status = 'completada';
+                        task.completionDate = instanceDate; // FIX: Use the specific day it was completed on
+                    } else {
+                        task.status = 'pendiente';
+                        task.completionDate = null;
+                    }
+                }
+                // Handle recurrent tasks (both 'recurrente' and 'flexible' types)
+                else if (task.recurrence) {
+                    if (instanceDate) {
                         const dateIndex = task.completedDates.indexOf(instanceDate);
                         if (dateIndex > -1) {
                             task.completedDates.splice(dateIndex, 1);
                         } else {
                             task.completedDates.push(instanceDate);
                         }
-                    } else {
-                         if (task.status === 'pendiente') {
-                            task.status = 'completada';
-                            task.completionDate = new Date().toISOString().split('T')[0];
-                        } else {
-                            task.status = 'pendiente';
-                            task.completionDate = null;
-                        }
                     }
-                    saveTasks(); 
-                    renderAll(); 
-                    openModal(task, instanceDate); 
                 }
-            });
+                // Handle all other non-recurrent tasks (puntual, inaplazable, anual)
+                else {
+                    if (task.status === 'pendiente') {
+                        task.status = 'completada';
+                        task.completionDate = toISODateString(new Date()); // Using today's date is fine for these
+                    } else {
+                        task.status = 'pendiente';
+                        task.completionDate = null;
+                    }
+                }
 
-            renderAll();
-            checkDueTasks();
+                saveTasks();
+                renderAll();
+                openModal(task, instanceDate); // Re-open modal to reflect changes
+            });
         };
 
         init();
