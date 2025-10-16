@@ -59,7 +59,7 @@
                 print-color-adjust: exact;
                 background-color: #ffffff;
             }
-            aside, button, #toast-container, #taskModal, #completedTasksModal, #passwordModal, #changePasswordModal, #managePharmaciesModal, #prev-month, #next-month, #clear-filters-btn, #login-screen {
+            aside, button, #toast-container, #taskModal, #completedTasksModal, #passwordModal, #changePasswordModal, #managePharmaciesModal, #userManualModal, #prev-month, #next-month, #clear-filters-btn, #login-screen {
                 display: none !important;
             }
             #app, main {
@@ -181,6 +181,9 @@
             </button>
             <button id="print-view-btn" class="w-full bg-teal-600 text-white font-bold py-3 px-4 rounded-lg shadow-sm hover:bg-teal-700 transition-colors duration-300">
                 Vista Imprimible
+            </button>
+            <button id="user-manual-btn" class="w-full bg-gray-600 text-white font-bold py-3 px-4 rounded-lg shadow-sm hover:bg-gray-700 transition-colors duration-300">
+                Manual de Usuario
             </button>
             
              <!-- Filtros -->
@@ -445,6 +448,93 @@
         </div>
     </div>
 
+    <!-- Modal para Manual de Usuario -->
+    <div id="userManualModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl p-8 transform transition-all scale-95 opacity-0 flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center mb-6">
+                 <h2 class="text-2xl font-bold">Manual de Usuario</h2>
+                 <button id="close-user-manual-modal-btn" class="p-2 rounded-full hover:bg-gray-200">
+                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                 </button>
+            </div>
+            <div id="user-manual-content" class="overflow-y-auto pr-4 text-sm text-gray-700 space-y-6">
+                <div>
+                    <h3 class="text-lg font-bold mb-2" style="color: #25af0f;">1. Acceso a la Aplicación</h3>
+                    <ul class="list-disc list-inside space-y-1">
+                        <li><strong>Seleccionar Farmacia:</strong> Elige tu farmacia de la lista desplegable.</li>
+                        <li><strong>Contraseña:</strong>
+                            <ul class="list-circle list-inside ml-4">
+                                <li><strong>Gerente:</strong> Introduce la contraseña específica de tu farmacia. Si es la primera vez que accedes, la primera contraseña que uses se guardará como la contraseña del gerente para esa farmacia.</li>
+                                <li><strong>Administrador:</strong> Para acceder a cualquier farmacia con permisos de supervisor, introduce la contraseña de administrador.</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 class="text-lg font-bold mb-2" style="color: #25af0f;">2. Interfaz Principal</h3>
+                    <ul class="list-disc list-inside space-y-1">
+                        <li><strong>Calendario:</strong> Muestra las tareas del mes actual. Puedes navegar a otros meses con las flechas <strong>&lt;</strong> y <strong>&gt;</strong>.</li>
+                        <li><strong>Panel Lateral:</strong> Contiene los controles principales, filtros, resúmenes y la gestión de empleados y farmacias (si eres administrador).</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 class="text-lg font-bold mb-2" style="color: #25af0f;">3. Gestión de Tareas</h3>
+                    <ul class="list-disc list-inside space-y-1">
+                        <li><strong>Crear Tarea:</strong> Haz clic en el botón "Añadir Nueva Tarea" o en un día vacío del calendario.</li>
+                        <li><strong>Editar Tarea:</strong> Haz clic sobre una tarea existente en el calendario.</li>
+                        <li><strong>Tipos de Tareas:</strong>
+                            <ul class="list-circle list-inside ml-4">
+                                <li><strong>Puntual/Inaplazable/Anual:</strong> Tareas con una fecha de inicio y/o fin específica.</li>
+                                <li><strong>Flexible:</strong> Tareas que se pueden realizar dentro de un rango de días. Una vez completada, se fija al día en que se completó y desaparece del resto.</li>
+                                <li><strong>Recurrente:</strong> Tareas que se repiten semanalmente (marcando los días) o mensualmente (indicando el día del mes).</li>
+                            </ul>
+                        </li>
+                        <li><strong>Funciones Especiales:</strong>
+                             <ul class="list-circle list-inside ml-4">
+                                <li><strong>Enlace Web:</strong> Puedes añadir una URL a cualquier tarea. Aparecerá un icono de enlace (🔗) en el calendario para un acceso rápido.</li>
+                                <li><strong>Modificar Tiempo Recurrente:</strong> Al editar una tarea recurrente en un día concreto, puedes introducir el "Tiempo Realizado" real para esa instancia, sin cambiar el tiempo estimado por defecto.</li>
+                             </ul>
+                        </li>
+                    </ul>
+                </div>
+                 <div>
+                    <h3 class="text-lg font-bold mb-2" style="color: #25af0f;">4. Gestión de Empleados</h3>
+                    <ul class="list-disc list-inside space-y-1">
+                        <li>Introduce un nombre y haz clic en "Añadir" para crear un nuevo empleado.</li>
+                        <li>Haz clic en la 'X' roja junto a un nombre para eliminar a un empleado.</li>
+                    </ul>
+                </div>
+                 <div>
+                    <h3 class="text-lg font-bold mb-2" style="color: #25af0f;">5. Resumen y Revisiones</h3>
+                    <ul class="list-disc list-inside space-y-1">
+                        <li><strong>Resumen por Empleado:</strong> Muestra el tiempo total de tareas asignadas en el mes y el tiempo ya completado.</li>
+                        <li><strong>Revisar Tareas Completadas:</strong> Abre una ventana con un historial de todas las tareas finalizadas, indicando quién la hizo, en qué fecha y el tiempo empleado.</li>
+                    </ul>
+                </div>
+                 <div>
+                    <h3 class="text-lg font-bold mb-2" style="color: #25af0f;">6. Seguridad</h3>
+                    <ul class="list-disc list-inside space-y-1">
+                        <li><strong>Bloquear/Desbloquear:</strong> El icono del candado (🔒) en la parte superior te permite bloquear la aplicación para evitar modificaciones accidentales. Para desbloquear, introduce tu contraseña de gerente o administrador.</li>
+                        <li><strong>Cambiar Contraseña:</strong>
+                            <ul class="list-circle list-inside ml-4">
+                                <li><strong>Gerente:</strong> Haz clic en "Cambiar Contraseña" para modificar la contraseña de tu farmacia.</li>
+                                <li><strong>Administrador:</strong> Puedes cambiar tu propia contraseña o resetear la contraseña de cualquier gerente seleccionando la farmacia en el desplegable.</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+                 <div>
+                    <h3 class="text-lg font-bold mb-2" style="color: #25af0f;">7. Funciones de Administrador</h3>
+                    <ul class="list-disc list-inside space-y-1">
+                        <li><strong>Gestionar Farmacias:</strong> Permite editar los nombres de las farmacias existentes o añadir nuevas a la lista.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Contenedor de Notificaciones (Toast) -->
     <div id="toast-container" class="fixed bottom-0 right-0 p-6 space-y-3 z-50 w-full max-w-sm"></div>
 
@@ -515,6 +605,9 @@
         const completedTasksListEl = document.getElementById('completed-tasks-list');
         const closeCompletedModalBtn = document.getElementById('close-completed-modal-btn');
         const printViewBtn = document.getElementById('print-view-btn');
+        const userManualBtn = document.getElementById('user-manual-btn');
+        const userManualModal = document.getElementById('userManualModal');
+        const closeUserManualModalBtn = document.getElementById('close-user-manual-modal-btn');
         // Login & Seguridad
         const loginForm = document.getElementById('login-form');
         const pharmacySelect = document.getElementById('pharmacy-select');
@@ -792,12 +885,16 @@
             employees.forEach(employee => {
                 let totalTime = 0;
                 let completedTime = 0;
+                let totalTaskCount = 0;
+                let completedTaskCount = 0;
+                
                 const month = currentDate.getMonth();
                 const year = currentDate.getFullYear();
                 const daysInMonth = new Date(year, month + 1, 0).getDate();
 
                 tasks.filter(t => t.assignedTo === employee.id).forEach(task => {
                     if (task.type === 'flexible' && task.recurrence?.type === 'monthly') {
+                        totalTaskCount++;
                         totalTime += task.estimatedTime || 0;
                         const completedInstanceThisMonth = task.completedInstances?.find(inst => {
                             const completedMonth = parseInt(inst.date.split('-')[1], 10) - 1;
@@ -806,6 +903,7 @@
                         });
 
                         if (completedInstanceThisMonth) {
+                             completedTaskCount++;
                              completedTime += completedInstanceThisMonth.time || task.estimatedTime;
                         }
 
@@ -814,10 +912,12 @@
                             for (let day = 1; day <= daysInMonth; day++) {
                                 const date = new Date(Date.UTC(year, month, day));
                                 if (task.recurrence.days.includes(String(date.getUTCDay()))) {
+                                    totalTaskCount++; // Count each instance
                                     totalTime += task.estimatedTime;
                                     const dateString = toISODateString(date);
                                     const completedInstance = task.completedInstances?.find(inst => inst.date === dateString);
                                     if (completedInstance) {
+                                        completedTaskCount++;
                                         completedTime += completedInstance.time || task.estimatedTime;
                                     }
                                 }
@@ -825,11 +925,13 @@
                         } else if (task.recurrence.type === 'monthly' && task.recurrence.dayOfMonth) {
                             const dayOfMonth = parseInt(task.recurrence.dayOfMonth);
                             if (dayOfMonth > 0 && dayOfMonth <= daysInMonth) {
+                                totalTaskCount++; // Count this instance
                                 totalTime += task.estimatedTime;
                                 const date = new Date(Date.UTC(year, month, dayOfMonth));
                                 const dateString = toISODateString(date);
                                 const completedInstance = task.completedInstances?.find(inst => inst.date === dateString);
                                 if (completedInstance) {
+                                    completedTaskCount++;
                                     completedTime += completedInstance.time || task.estimatedTime;
                                 }
                             }
@@ -839,11 +941,13 @@
                         const monthEndStr = toISODateString(new Date(Date.UTC(year, month + 1, 0)));
 
                         if (task.startDate <= monthEndStr && task.dueDate >= monthStartStr) {
+                            totalTaskCount++; // This task counts as one
                             totalTime += task.estimatedTime || 0;
                             if (task.status === 'completada' && task.completionDate) {
                                 const completionMonth = parseInt(task.completionDate.split('-')[1], 10) - 1;
                                 const completionYear = parseInt(task.completionDate.split('-')[0], 10);
                                 if (completionMonth === month && completionYear === year) {
+                                    completedTaskCount++;
                                     completedTime += task.estimatedTime || 0;
                                 }
                             }
@@ -853,20 +957,36 @@
                              const taskMonth = parseInt(task.dueDate.split('-')[1], 10) - 1;
                              const taskYear = parseInt(task.dueDate.split('-')[0], 10);
                              if(taskMonth === month && taskYear === year) {
+                                totalTaskCount++; // This task counts as one
                                 totalTime += task.estimatedTime || 0;
                                 if(task.status === 'completada'){
+                                    completedTaskCount++;
                                     completedTime += task.estimatedTime || 0;
                                 }
                              }
                          }
                     }
                 });
+                
+                const pendingTaskCount = totalTaskCount - completedTaskCount;
 
                 employeeReportEl.innerHTML += `
                     <div class="p-3 bg-gray-100 rounded-lg">
                         <p class="font-semibold">${employee.name}</p>
-                        <p class="text-sm text-gray-600">Tiempo Total: <strong>${formatTime(totalTime)}</strong></p>
-                        <p class="text-sm text-green-700">Tiempo Completado: <strong>${formatTime(completedTime)}</strong></p>
+                        <div class="grid grid-cols-2 gap-x-2 text-sm mt-1">
+                            <div>
+                                <p class="text-gray-600">Pendientes:</p>
+                                <p class="font-bold text-orange-600">${pendingTaskCount}</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-600">Completadas:</p>
+                                <p class="font-bold text-green-600">${completedTaskCount}</p>
+                            </div>
+                        </div>
+                        <div class="mt-2 pt-2 border-t">
+                            <p class="text-sm text-gray-600">Tiempo Total: <strong>${formatTime(totalTime)}</strong></p>
+                            <p class="text-sm text-green-700">Tiempo Completado: <strong>${formatTime(completedTime)}</strong></p>
+                        </div>
                         <div class="w-full bg-gray-300 rounded-full h-2.5 mt-2">
                             <div class="bg-green-500 h-2.5 rounded-full" style="width: ${totalTime > 0 ? (completedTime / totalTime) * 100 : 0}%"></div>
                         </div>
@@ -1282,7 +1402,7 @@
         // --- INICIALIZACIÓN Y EVENTOS ---
         async function init() {
             // !!! PASO CRÍTICO: PEGA TU CONFIGURACIÓN DE FIREBASE AQUÍ REEMPLAZANDO LA LÍNEA SIGUIENTE !!!
-          const firebaseConfig = {
+            const firebaseConfig = {
     apiKey: "AIzaSyBa5xLOwdAG8OUP8we0zMpUPtGOh0dlHpc",
     authDomain: "organizador-ooff.firebaseapp.com",
     projectId: "organizador-ooff",
@@ -1291,7 +1411,6 @@
     appId: "1:281892698487:web:afcee43fa18ecae0f90972",
     measurementId: "G-GEL64PCPMP"
   };
-            
             const app = window.firebase.initializeApp(firebaseConfig);
             db = window.firebase.getFirestore(app);
             auth = window.firebase.getAuth(app);
@@ -1341,6 +1460,14 @@
             // Modales y Botones
             document.getElementById('addTaskBtn').addEventListener('click', () => openModal());
             printViewBtn.addEventListener('click', () => window.print());
+            userManualBtn.addEventListener('click', () => {
+                const modal = document.getElementById('userManualModal');
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                setTimeout(() => modal.querySelector('div').classList.remove('scale-95', 'opacity-0'), 50);
+            });
+            closeUserManualModalBtn.addEventListener('click', () => closeModal(userManualModal));
+            userManualModal.addEventListener('click', (e) => { if(e.target === userManualModal) closeModal(userManualModal); });
             document.getElementById('cancel-btn').addEventListener('click', () => closeModal(taskModal));
             taskModal.addEventListener('click', (e) => { if (e.target === taskModal) closeModal(taskModal); });
             document.getElementById('task-type').addEventListener('change', updateModalUI);
