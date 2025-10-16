@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestor de Tareas Multi-Farmacia</title>
     <script src="https://cdn-tailwindcss.vercel.app/"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Firebase SDK -->
     <script type="module">
         // Import the functions you need from the SDKs you need
@@ -27,9 +27,10 @@
     </script>
     <style>
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Nunito', sans-serif;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
+            background-color: #25af0f;
         }
         .calendar-grid {
             grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -56,6 +57,7 @@
             body {
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
+                background-color: #ffffff;
             }
             aside, button, #toast-container, #taskModal, #completedTasksModal, #passwordModal, #changePasswordModal, #managePharmaciesModal, #prev-month, #next-month, #clear-filters-btn, #login-screen {
                 display: none !important;
@@ -116,18 +118,18 @@
         }
     </style>
 </head>
-<body class="bg-gray-100 text-gray-800">
+<body class="text-gray-800">
 
     <!-- Pantalla de Carga Inicial -->
-    <div id="loading-screen" class="flex flex-col items-center justify-center h-screen bg-gray-100">
+    <div id="loading-screen" class="flex flex-col items-center justify-center h-screen">
         <div class="loader"></div>
-        <p class="mt-4 text-gray-600">Conectando...</p>
+        <p class="mt-4 text-white">Conectando...</p>
     </div>
 
     <!-- Pantalla de Login -->
-    <div id="login-screen" class="hidden items-center justify-center h-screen bg-gray-100">
+    <div id="login-screen" class="hidden items-center justify-center h-screen">
         <div class="w-full max-w-md bg-white p-8 rounded-xl shadow-lg">
-            <h1 class="text-3xl font-bold text-center text-blue-700 mb-2">Gestor de Tareas</h1>
+            <h1 class="text-3xl font-bold text-center mb-2" style="color: #25af0f;">Gestor de Tareas</h1>
             <p class="text-center text-gray-500 mb-8">Acceso a Farmacias</p>
             <form id="login-form">
                 <div class="mb-4">
@@ -158,7 +160,7 @@
         <aside class="w-full lg:w-1/3 xl:w-1/4 p-6 bg-white border-r border-gray-200 flex flex-col space-y-6 overflow-y-auto">
             <header class="flex justify-between items-start">
                 <div>
-                    <h1 id="pharmacy-name-header" class="text-2xl font-bold text-blue-700"></h1>
+                    <h1 id="pharmacy-name-header" class="text-2xl font-bold" style="color: #25af0f;"></h1>
                     <p class="text-gray-500">Planificador Mensual</p>
                 </div>
                 <div class="flex items-center gap-2">
@@ -329,7 +331,7 @@
                         <input type="date" id="task-due-date" class="w-full border-gray-300 rounded-lg shadow-sm">
                     </div>
                 </div>
-
+                
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div>
                         <label for="task-assigned-to" class="block text-sm font-medium">Asignar a</label>
@@ -339,6 +341,11 @@
                         <label for="task-time" class="block text-sm font-medium">Tiempo Estimado (min)</label>
                         <input type="number" id="task-time" min="0" step="5" class="w-full border-gray-300 rounded-lg shadow-sm" required>
                     </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="task-url" class="block text-sm font-medium text-gray-700 mb-1">Enlace Web (Opcional)</label>
+                    <input type="url" id="task-url" placeholder="https://ejemplo.com" class="w-full border-gray-300 rounded-lg shadow-sm">
                 </div>
 
                 <div class="flex justify-between items-center mt-8">
@@ -666,13 +673,22 @@
                         isCompletedToday = task.status === 'completada';
                     }
 
-                    taskEl.className = `taskEl text-xs p-1.5 rounded-md border-l-4 font-medium ${employeeColor.bg} ${employeeColor.text} ${typeBorderColor}`;
+                    taskEl.className = `taskEl text-xs p-1.5 rounded-md border-l-4 font-medium ${employeeColor.bg} ${employeeColor.text} ${typeBorderColor} flex justify-between items-center`;
 
+                    let taskHTML = `<span>${task.title}</span>`;
+                    if (task.url) {
+                         taskHTML += `<a href="${task.url}" target="_blank" class="text-blue-500 hover:text-blue-700 ml-2" onclick="event.stopPropagation();">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                            </svg>
+                          </a>`;
+                    }
+                    
                     if (isCompletedToday) {
                         taskEl.classList.add('opacity-60');
-                        taskEl.innerHTML = `<span class="font-semibold line-through">${task.title}</span>`;
+                        taskEl.innerHTML = `<span class="font-semibold line-through">${taskHTML}</span>`;
                     } else {
-                        taskEl.innerHTML = `<span class="font-semibold">${task.title}</span>`;
+                        taskEl.innerHTML = `<span class="font-semibold">${taskHTML}</span>`;
                     }
                     taskEl.addEventListener('click', (e) => { e.stopPropagation(); openModal(task, dateString); });
                     tasksContainer.appendChild(taskEl);
@@ -897,6 +913,7 @@
                 document.getElementById('task-due-date').value = task.dueDate || '';
                 document.getElementById('task-assigned-to').value = task.assignedTo || '';
                 document.getElementById('task-time').value = task.estimatedTime || '';
+                document.getElementById('task-url').value = task.url || '';
                 
                 if (task.recurrence) {
                      if (task.recurrence.type === 'monthly' && task.type === 'recurrente') {
@@ -1223,16 +1240,8 @@
         // --- INICIALIZACIÓN Y EVENTOS ---
         async function init() {
             // Inicializar Firebase
-           const firebaseConfig = {
-    apiKey: "AIzaSyBa5xLOwdAG8OUP8we0zMpUPtGOh0dlHpc",
-    authDomain: "organizador-ooff.firebaseapp.com",
-    projectId: "organizador-ooff",
-    storageBucket: "organizador-ooff.firebasestorage.app",
-    messagingSenderId: "281892698487",
-    appId: "1:281892698487:web:afcee43fa18ecae0f90972",
-    measurementId: "G-GEL64PCPMP"
-  };
-
+            const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+            
             const app = window.firebase.initializeApp(firebaseConfig);
             db = window.firebase.getFirestore(app);
             auth = window.firebase.getAuth(app);
@@ -1425,7 +1434,8 @@
                     status: 'pendiente',
                     recurrence: null,
                     completedDates: [],
-                    completionDate: null
+                    completionDate: null,
+                    url: document.getElementById('task-url').value.trim() || null
                 };
 
                 if(id) {
@@ -1517,3 +1527,4 @@
     </script>
 </body>
 </html>
+
