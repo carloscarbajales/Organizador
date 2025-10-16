@@ -337,10 +337,14 @@
                         <label for="task-assigned-to" class="block text-sm font-medium">Asignar a</label>
                         <select id="task-assigned-to" class="w-full border-gray-300 rounded-lg shadow-sm"> </select>
                     </div>
-                    <div>
+                     <div>
                         <label for="task-time" class="block text-sm font-medium">Tiempo Estimado (min)</label>
                         <input type="number" id="task-time" min="0" step="5" class="w-full border-gray-300 rounded-lg shadow-sm" required>
                     </div>
+                </div>
+                <div id="actual-time-container" class="hidden mb-4">
+                    <label for="task-actual-time" class="block text-sm font-medium">Tiempo Realizado (min)</label>
+                    <input type="number" id="task-actual-time" min="0" step="5" class="w-full border-gray-300 rounded-lg shadow-sm">
                 </div>
                 
                 <div class="mb-4">
@@ -592,10 +596,26 @@
             unsubscribePharmacyData(); // Cancelar la escucha anterior
             const pharmacyDataRef = getPharmacyDataRef(pharmacyId);
             unsubscribePharmacyData = window.firebase.onSnapshot(pharmacyDataRef, (doc) => {
+                let needsUpdate = false;
                 if (doc.exists()) {
                     const data = doc.data();
                     tasks = data.tasks || [];
                     employees = data.employees || [];
+
+                    // --- Data Migration ---
+                    tasks.forEach(task => {
+                        if (task.completedDates && Array.isArray(task.completedDates)) {
+                            task.completedInstances = task.completedDates.map(dateStr => ({
+                                date: dateStr,
+                                time: task.estimatedTime
+                            }));
+                            delete task.completedDates;
+                            needsUpdate = true;
+                        }
+                        if (!task.completedInstances) {
+                            task.completedInstances = [];
+                        }
+                    });
                 } else {
                     // Si no existe, creamos los empleados por defecto
                     employees = [
@@ -604,9 +624,15 @@
                         { id: 7, name: 'Equipo 4' }, { id: 8, name: 'Equipo 5' }
                     ];
                     tasks = [];
-                    savePharmacyData(); // Guardamos el estado inicial en Firestore
+                    needsUpdate = true;
                 }
-                renderAll();
+                
+                if (needsUpdate) {
+                    console.log("Saving initial or migrated data...");
+                    savePharmacyData(); 
+                } else {
+                    renderAll();
+                }
             });
         }
 
@@ -663,12 +689,10 @@
                     const typeBorderColor = taskTypeBorders[task.type] || 'border-gray-400';
                     
                     let isCompletedToday = false;
-                    if (task.recurrence || task.type === 'flexible') {
-                         if (task.type === 'flexible' && !task.recurrence) {
-                            isCompletedToday = task.status === 'completada';
-                        } else {
-                            isCompletedToday = task.completedDates.includes(dateString);
-                        }
+                    if (task.recurrence) {
+                        isCompletedToday = task.completedInstances?.some(inst => inst.date === dateString);
+                    } else if (task.type === 'flexible') {
+                        isCompletedToday = task.status === 'completada';
                     } else {
                         isCompletedToday = task.status === 'completada';
                     }
@@ -686,9 +710,9 @@
                     
                     if (isCompletedToday) {
                         taskEl.classList.add('opacity-60');
-                        taskEl.innerHTML = `<span class="font-semibold line-through">${taskHTML}</span>`;
+                        taskEl.innerHTML = `<span class="font-semibold line-through flex items-center">${taskHTML}</span>`;
                     } else {
-                        taskEl.innerHTML = `<span class="font-semibold">${taskHTML}</span>`;
+                        taskEl.innerHTML = `<span class="font-semibold flex items-center">${taskHTML}</span>`;
                     }
                     taskEl.addEventListener('click', (e) => { e.stopPropagation(); openModal(task, dateString); });
                     tasksContainer.appendChild(taskEl);
@@ -706,6 +730,9 @@
             const dayOfWeek = date.getUTCDay();
             return taskList.filter(task => {
                 if (task.type === 'flexible' && task.recurrence?.type === 'monthly') {
+                    if (task.completedInstances?.some(inst => inst.date.substring(0, 7) === dateString.substring(0, 7))) {
+                        return task.completedInstances.some(inst => inst.date === dateString);
+                    }
                     return dayOfMonth >= parseInt(task.startDate) && dayOfMonth <= parseInt(task.dueDate);
                 }
                 
@@ -772,14 +799,14 @@
                 tasks.filter(t => t.assignedTo === employee.id).forEach(task => {
                     if (task.type === 'flexible' && task.recurrence?.type === 'monthly') {
                         totalTime += task.estimatedTime || 0;
-                        const completedThisMonth = task.completedDates.some(dateStr => {
-                            const completedMonth = parseInt(dateStr.split('-')[1], 10) - 1;
-                            const completedYear = parseInt(dateStr.split('-')[0], 10);
+                        const completedInstanceThisMonth = task.completedInstances?.find(inst => {
+                            const completedMonth = parseInt(inst.date.split('-')[1], 10) - 1;
+                            const completedYear = parseInt(inst.date.split('-')[0], 10);
                             return completedMonth === month && completedYear === year;
                         });
 
-                        if (completedThisMonth) {
-                             completedTime += task.estimatedTime || 0;
+                        if (completedInstanceThisMonth) {
+                             completedTime += completedInstanceThisMonth.time || task.estimatedTime;
                         }
 
                     } else if (task.type === 'recurrente' && task.recurrence) {
@@ -789,8 +816,9 @@
                                 if (task.recurrence.days.includes(String(date.getUTCDay()))) {
                                     totalTime += task.estimatedTime;
                                     const dateString = toISODateString(date);
-                                    if (task.completedDates.includes(dateString)) {
-                                        completedTime += task.estimatedTime;
+                                    const completedInstance = task.completedInstances?.find(inst => inst.date === dateString);
+                                    if (completedInstance) {
+                                        completedTime += completedInstance.time || task.estimatedTime;
                                     }
                                 }
                             }
@@ -800,8 +828,9 @@
                                 totalTime += task.estimatedTime;
                                 const date = new Date(Date.UTC(year, month, dayOfMonth));
                                 const dateString = toISODateString(date);
-                                if (task.completedDates.includes(dateString)) {
-                                    completedTime += task.estimatedTime;
+                                const completedInstance = task.completedInstances?.find(inst => inst.date === dateString);
+                                if (completedInstance) {
+                                    completedTime += completedInstance.time || task.estimatedTime;
                                 }
                             }
                         }
@@ -899,6 +928,10 @@
             ['task-id', 'task-status', 'task-instance-date'].forEach(id => document.getElementById(id).value = '');
             if(dateString) document.getElementById('task-instance-date').value = dateString;
             
+            const actualTimeContainer = document.getElementById('actual-time-container');
+            const actualTimeInput = document.getElementById('task-actual-time');
+            actualTimeContainer.classList.add('hidden'); 
+
             if (task) { // Editar
                 document.getElementById('task-type').value = task.type;
                  if (task.recurrence) {
@@ -916,6 +949,9 @@
                 document.getElementById('task-url').value = task.url || '';
                 
                 if (task.recurrence) {
+                    actualTimeContainer.classList.remove('hidden');
+                    const completedInstance = task.completedInstances?.find(inst => inst.date === dateString);
+                    actualTimeInput.value = completedInstance ? completedInstance.time : task.estimatedTime;
                      if (task.recurrence.type === 'monthly' && task.type === 'recurrente') {
                         document.getElementById('task-recurrence-day-month').value = task.recurrence.dayOfMonth;
                     } else if (task.recurrence.type === 'weekly' && task.recurrence.days) {
@@ -931,12 +967,10 @@
                 toggleBtn.classList.remove('hidden');
 
                 let isCompletedToday = false;
-                 if (task.recurrence || task.type === 'flexible') {
-                     if (task.type === 'flexible' && !task.recurrence) {
-                        isCompletedToday = task.status === 'completada';
-                    } else {
-                        isCompletedToday = dateString && task.completedDates.includes(dateString);
-                    }
+                 if (task.recurrence) {
+                    isCompletedToday = dateString && task.completedInstances?.some(inst => inst.date === dateString);
+                } else if (task.type === 'flexible') {
+                    isCompletedToday = task.status === 'completada';
                 } else {
                     isCompletedToday = task.status === 'completada';
                 }
@@ -1024,14 +1058,16 @@
                     allCompletedInstances.push({
                         title: task.title,
                         assignedTo: getEmployeeNameById(task.assignedTo),
-                        completionDate: new Date(task.completionDate || task.dueDate)
+                        completionDate: new Date(task.completionDate || task.dueDate),
+                        timeSpent: task.estimatedTime
                     });
-                } else if (task.recurrence) {
-                    task.completedDates.forEach(dateStr => {
+                } else if (task.completedInstances) {
+                    task.completedInstances.forEach(instance => {
                         allCompletedInstances.push({
                             title: task.title,
                             assignedTo: getEmployeeNameById(task.assignedTo),
-                            completionDate: new Date(dateStr)
+                            completionDate: new Date(instance.date),
+                            timeSpent: instance.time
                         });
                     });
                 }
@@ -1045,7 +1081,12 @@
                 completedTasksListEl.innerHTML = `
                     <table class="w-full text-sm text-left">
                         <thead class="bg-gray-50">
-                            <tr><th class="p-2">Tarea</th><th class="p-2">Completada por</th><th class="p-2">Fecha de Finalización</th></tr>
+                            <tr>
+                                <th class="p-2">Tarea</th>
+                                <th class="p-2">Completada por</th>
+                                <th class="p-2">Fecha</th>
+                                <th class="p-2">Tiempo Empleado</th>
+                            </tr>
                         </thead>
                         <tbody>
                         ${allCompletedInstances.map(instance => `
@@ -1053,6 +1094,7 @@
                                 <td class="p-2 font-medium">${instance.title}</td>
                                 <td class="p-2">${instance.assignedTo}</td>
                                 <td class="p-2">${new Date(instance.completionDate.getTime() + instance.completionDate.getTimezoneOffset() * 60000).toLocaleDateString()}</td>
+                                <td class="p-2">${formatTime(instance.timeSpent)}</td>
                             </tr>
                         `).join('')}
                         </tbody>
@@ -1433,7 +1475,7 @@
                     estimatedTime: parseInt(document.getElementById('task-time').value) || 0,
                     status: 'pendiente',
                     recurrence: null,
-                    completedDates: [],
+                    completedInstances: [],
                     completionDate: null,
                     url: document.getElementById('task-url').value.trim() || null
                 };
@@ -1442,7 +1484,7 @@
                     const existingTask = tasks.find(t => t.id === id);
                     if(existingTask) {
                         taskData.status = existingTask.status;
-                        taskData.completedDates = existingTask.completedDates;
+                        taskData.completedInstances = existingTask.completedInstances;
                         taskData.completionDate = existingTask.completionDate;
                     }
                 }
@@ -1500,11 +1542,12 @@
                 }
                 else if (task.recurrence) {
                     if (instanceDate) {
-                        const dateIndex = task.completedDates.indexOf(instanceDate);
+                        const dateIndex = task.completedInstances.findIndex(inst => inst.date === instanceDate);
                         if (dateIndex > -1) {
-                            task.completedDates.splice(dateIndex, 1);
+                            task.completedInstances.splice(dateIndex, 1);
                         } else {
-                            task.completedDates.push(instanceDate);
+                            const actualTime = parseInt(document.getElementById('task-actual-time').value) || task.estimatedTime;
+                            task.completedInstances.push({ date: instanceDate, time: actualTime });
                         }
                     }
                 }
