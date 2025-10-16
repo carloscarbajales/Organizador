@@ -194,7 +194,7 @@
                 <h2 class="text-lg font-semibold mb-3 border-b pb-2">Filtros</h2>
                 <div class="space-y-3">
                     <div>
-                        <label for="filter-employee" class="block text-sm font-medium">Empleado:</label>
+                        <label for="filter-employee" class="text-sm font-medium">Empleado:</label>
                         <select id="filter-employee" class="w-full mt-1 border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500">
                             <option value="all">Todos</option>
                         </select>
@@ -211,6 +211,14 @@
                         </select>
                     </div>
                     <button id="clear-filters-btn" class="w-full text-sm text-blue-600 hover:underline">Limpiar Filtros</button>
+                </div>
+            </div>
+
+            <!-- Resumen Total de la Farmacia -->
+            <div>
+                <h2 class="text-lg font-semibold mb-3 border-b pb-2">Resumen Total de la Farmacia</h2>
+                <div id="pharmacy-summary-report" class="p-3 bg-blue-50 rounded-lg text-sm">
+                    <!-- Summary will be generated here -->
                 </div>
             </div>
 
@@ -746,6 +754,7 @@
         // --- FUNCIONES DE RENDERIZADO Y UI ---
         const renderAll = () => {
             renderCalendar();
+            renderPharmacySummary();
             renderEmployeeUI();
             updateLockUI();
             updateAdminUI();
@@ -858,6 +867,119 @@
             const h = Math.floor(minutes / 60);
             const m = minutes % 60;
             return `${h > 0 ? `${h}h ` : ''}${m}m`;
+        };
+        
+        const renderPharmacySummary = () => {
+            const summaryEl = document.getElementById('pharmacy-summary-report');
+            if (!summaryEl) return;
+
+            let totalTime = 0;
+            let completedTime = 0;
+            let totalTaskCount = 0;
+            let completedTaskCount = 0;
+            
+            const month = currentDate.getMonth();
+            const year = currentDate.getFullYear();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            tasks.forEach(task => {
+                if (task.type === 'flexible' && task.recurrence?.type === 'monthly') {
+                    totalTaskCount++;
+                    totalTime += task.estimatedTime || 0;
+                    const completedInstanceThisMonth = task.completedInstances?.find(inst => {
+                        const completedMonth = parseInt(inst.date.split('-')[1], 10) - 1;
+                        const completedYear = parseInt(inst.date.split('-')[0], 10);
+                        return completedMonth === month && completedYear === year;
+                    });
+
+                    if (completedInstanceThisMonth) {
+                         completedTaskCount++;
+                         completedTime += completedInstanceThisMonth.time || task.estimatedTime;
+                    }
+
+                } else if (task.type === 'recurrente' && task.recurrence) {
+                    if (task.recurrence.type === 'weekly' && task.recurrence.days) {
+                        for (let day = 1; day <= daysInMonth; day++) {
+                            const date = new Date(Date.UTC(year, month, day));
+                            if (task.recurrence.days.includes(String(date.getUTCDay()))) {
+                                totalTaskCount++;
+                                totalTime += task.estimatedTime;
+                                const dateString = toISODateString(date);
+                                const completedInstance = task.completedInstances?.find(inst => inst.date === dateString);
+                                if (completedInstance) {
+                                    completedTaskCount++;
+                                    completedTime += completedInstance.time || task.estimatedTime;
+                                }
+                            }
+                        }
+                    } else if (task.recurrence.type === 'monthly' && task.recurrence.dayOfMonth) {
+                        const dayOfMonth = parseInt(task.recurrence.dayOfMonth);
+                        if (dayOfMonth > 0 && dayOfMonth <= daysInMonth) {
+                            totalTaskCount++;
+                            totalTime += task.estimatedTime;
+                            const date = new Date(Date.UTC(year, month, dayOfMonth));
+                            const dateString = toISODateString(date);
+                            const completedInstance = task.completedInstances?.find(inst => inst.date === dateString);
+                            if (completedInstance) {
+                                completedTaskCount++;
+                                completedTime += completedInstance.time || task.estimatedTime;
+                            }
+                        }
+                    }
+                } else if ((task.type === 'flexible' || task.type === 'anual') && !task.recurrence) {
+                    const monthStartStr = toISODateString(new Date(Date.UTC(year, month, 1)));
+                    const monthEndStr = toISODateString(new Date(Date.UTC(year, month + 1, 0)));
+
+                    if (task.startDate <= monthEndStr && task.dueDate >= monthStartStr) {
+                        totalTaskCount++;
+                        totalTime += task.estimatedTime || 0;
+                        if (task.status === 'completada' && task.completionDate) {
+                            const completionMonth = parseInt(task.completionDate.split('-')[1], 10) - 1;
+                            const completionYear = parseInt(task.completionDate.split('-')[0], 10);
+                            if (completionMonth === month && completionYear === year) {
+                                completedTaskCount++;
+                                completedTime += task.estimatedTime || 0;
+                            }
+                        }
+                    }
+                } else { 
+                     if (task.dueDate) {
+                         const taskMonth = parseInt(task.dueDate.split('-')[1], 10) - 1;
+                         const taskYear = parseInt(task.dueDate.split('-')[0], 10);
+                         if(taskMonth === month && taskYear === year) {
+                            totalTaskCount++;
+                            totalTime += task.estimatedTime || 0;
+                            if(task.status === 'completada'){
+                                completedTaskCount++;
+                                completedTime += task.estimatedTime || 0;
+                            }
+                         }
+                     }
+                }
+            });
+
+            const pendingTaskCount = totalTaskCount - completedTaskCount;
+
+            summaryEl.innerHTML = `
+                <div class="grid grid-cols-3 gap-x-2 text-center">
+                    <div>
+                        <p class="font-bold text-lg text-blue-600">${totalTaskCount}</p>
+                        <p class="text-xs text-gray-500">Tareas Totales</p>
+                    </div>
+                    <div>
+                        <p class="font-bold text-lg text-green-600">${completedTaskCount}</p>
+                        <p class="text-xs text-gray-500">Completadas</p>
+                    </div>
+                    <div>
+                        <p class="font-bold text-lg text-orange-600">${pendingTaskCount}</p>
+                        <p class="text-xs text-gray-500">Pendientes</p>
+                    </div>
+                </div>
+                <div class="mt-3 pt-3 border-t">
+                     <p class="text-sm text-gray-600">Tiempo Total Estimado: <strong>${formatTime(totalTime)}</strong></p>
+                     <p class="text-sm text-green-700">Tiempo Total Completado: <strong>${formatTime(completedTime)}</strong></p>
+                </div>
+            `;
         };
 
         const renderEmployeeUI = () => {
@@ -1469,7 +1591,16 @@
         // --- INICIALIZACIÓN Y EVENTOS ---
         async function init() {
             // !!! PASO CRÍTICO: PEGA TU CONFIGURACIÓN DE FIREBASE AQUÍ REEMPLAZANDO LA LÍNEA SIGUIENTE !!!
-            const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+           const firebaseConfig = {
+    apiKey: "AIzaSyBa5xLOwdAG8OUP8we0zMpUPtGOh0dlHpc",
+    authDomain: "organizador-ooff.firebaseapp.com",
+    projectId: "organizador-ooff",
+    storageBucket: "organizador-ooff.firebasestorage.app",
+    messagingSenderId: "281892698487",
+    appId: "1:281892698487:web:afcee43fa18ecae0f90972",
+    measurementId: "G-GEL64PCPMP"
+  };
+
             
             const app = window.firebase.initializeApp(firebaseConfig);
             db = window.firebase.getFirestore(app);
