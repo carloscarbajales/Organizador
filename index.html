@@ -598,6 +598,7 @@
         const filterEmployeeSelect = document.getElementById('filter-employee');
         const filterTypeSelect = document.getElementById('filter-type');
         const employeeReportEl = document.getElementById('employee-report');
+        const exportCsvBtn = document.getElementById('export-csv-btn');
         // Gestión de Empleados
         const addEmployeeForm = document.getElementById('add-employee-form');
         const newEmployeeNameInput = document.getElementById('new-employee-name');
@@ -1401,19 +1402,62 @@
             const pharmacy = allPharmacies.find(p => p.id === currentPharmacyId);
             pharmacyNameHeader.textContent = pharmacy ? pharmacy.name : 'Farmacia Desconocida';
         }
+        
+        const handleExportCSV = () => {
+            let csvContent = "data:text/csv;charset=utf-8,Tarea,Empleado,Fecha,Tipo,Estado,Tiempo Estimado (min),Tiempo Realizado (min),Enlace Web\r\n";
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(Date.UTC(year, month, day));
+                const tasksForDay = getTasksForDate(date, tasks);
+
+                tasksForDay.forEach(task => {
+                    const dateString = toISODateString(date);
+                    const employeeName = getEmployeeNameById(task.assignedTo);
+                    let status = "Pendiente";
+                    let timeSpent = "";
+
+                    if (task.recurrence) {
+                        const completedInstance = task.completedInstances?.find(inst => inst.date === dateString);
+                        if(completedInstance) {
+                            status = "Completada";
+                            timeSpent = completedInstance.time;
+                        }
+                    } else if (task.status === 'completada') {
+                        status = "Completada";
+                        timeSpent = task.estimatedTime;
+                    }
+
+                    const row = [
+                        `"${task.title.replace(/"/g, '""')}"`,
+                        `"${employeeName.replace(/"/g, '""')}"`,
+                        date.toLocaleDateString(),
+                        task.type,
+                        status,
+                        task.estimatedTime,
+                        timeSpent,
+                        `"${task.url || ""}"`
+                    ].join(",");
+                    csvContent += row + "\r\n";
+                });
+            }
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            const monthName = currentDate.toLocaleString('es-ES', { month: 'long' }).toUpperCase();
+            link.setAttribute("download", `informe_tareas_${monthName}_${year}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
 
         // --- INICIALIZACIÓN Y EVENTOS ---
         async function init() {
             // !!! PASO CRÍTICO: PEGA TU CONFIGURACIÓN DE FIREBASE AQUÍ REEMPLAZANDO LA LÍNEA SIGUIENTE !!!
-            const firebaseConfig = {
-    apiKey: "AIzaSyBa5xLOwdAG8OUP8we0zMpUPtGOh0dlHpc",
-    authDomain: "organizador-ooff.firebaseapp.com",
-    projectId: "organizador-ooff",
-    storageBucket: "organizador-ooff.firebasestorage.app",
-    messagingSenderId: "281892698487",
-    appId: "1:281892698487:web:afcee43fa18ecae0f90972",
-    measurementId: "G-GEL64PCPMP"
-  };
+            const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
             
             const app = window.firebase.initializeApp(firebaseConfig);
             db = window.firebase.getFirestore(app);
@@ -1464,6 +1508,7 @@
             // Modales y Botones
             document.getElementById('addTaskBtn').addEventListener('click', () => openModal());
             printViewBtn.addEventListener('click', () => window.print());
+            exportCsvBtn.addEventListener('click', handleExportCSV);
             userManualBtn.addEventListener('click', () => {
                 const modal = document.getElementById('userManualModal');
                 modal.classList.remove('hidden');
