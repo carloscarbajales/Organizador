@@ -25,18 +25,6 @@
             updateDoc
         };
     </script>
-    <script>
-        // --- Global Functions for Google API Callbacks ---
-        function gapiLoaded() {
-            window.dispatchEvent(new CustomEvent('gapi-script-loaded'));
-        };
-        function gisLoaded() {
-            window.dispatchEvent(new CustomEvent('gis-script-loaded'));
-        };
-    </script>
-    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
-    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
-
     <style>
         body {
             font-family: 'Nunito', sans-serif;
@@ -268,21 +256,6 @@
                 <h2 class="text-lg font-semibold mb-3 border-b pb-2">Administración</h2>
                 <button id="manage-pharmacies-btn" class="w-full text-sm text-blue-600 hover:underline text-left">Gestionar Farmacias</button>
            </div>
-           
-            <!-- Integración con Google Tasks -->
-            <div id="google-tasks-integration">
-                <h2 class="text-lg font-semibold mb-3 border-b pb-2">Integración con Google</h2>
-                <div id="google-auth-container">
-                    <button id="connect-google-btn" class="w-full bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-sm hover:bg-gray-300">Conectar con Google</button>
-                </div>
-                <div id="google-sync-controls" class="hidden space-y-2 mt-2">
-                     <p class="text-sm font-medium text-green-700">Conectado a Google.</p>
-                    <label for="google-task-lists" class="text-sm font-medium">Lista de Tareas de Google:</label>
-                    <select id="google-task-lists" class="w-full border-gray-300 rounded-lg shadow-sm"></select>
-                    <button id="sync-google-btn" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-sm hover:bg-blue-700 protected-control">Sincronizar Tareas</button>
-                    <button id="disconnect-google-btn" class="w-full text-sm text-red-600 hover:underline">Desconectar</button>
-                </div>
-            </div>
             
         </aside>
 
