@@ -25,7 +25,18 @@
             updateDoc
         };
     </script>
-    <script src="https://apis.google.com/js/api.js"></script>
+    <script>
+        // --- Global Functions for Google API Callbacks ---
+        function gapiLoaded() {
+            window.dispatchEvent(new CustomEvent('gapi-script-loaded'));
+        };
+        function gisLoaded() {
+            window.dispatchEvent(new CustomEvent('gis-script-loaded'));
+        };
+    </script>
+    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+
     <style>
         body {
             font-family: 'Nunito', sans-serif;
@@ -195,13 +206,13 @@
                 <h2 class="text-lg font-semibold mb-3 border-b pb-2">Filtros</h2>
                 <div class="space-y-3">
                     <div>
-                        <label for="filter-employee" class="text-sm font-medium">Empleado:</label>
+                        <label for="filter-employee" class="block text-sm font-medium">Empleado:</label>
                         <select id="filter-employee" class="w-full mt-1 border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500">
                             <option value="all">Todos</option>
                         </select>
                     </div>
                     <div>
-                        <label for="filter-type" class="text-sm font-medium">Tipo de Tarea:</label>
+                        <label for="filter-type" class="block text-sm font-medium">Tipo de Tarea:</label>
                         <select id="filter-type" class="w-full mt-1 border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500">
                             <option value="all">Todos</option>
                             <option value="inaplazable">Inaplazable</option>
@@ -622,6 +633,8 @@
         let gapiInited = false;
         let gisInited = false;
         let tokenClient;
+        const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/tasks/v1/rest';
+        const SCOPES = 'https://www.googleapis.com/auth/tasks';
 
         const employeeColorPalette = [
             { bg: 'bg-blue-100', text: 'text-blue-800' },
@@ -1741,7 +1754,7 @@
         async function init() {
             // !!! PASO CRÍTICO: PEGA TU CONFIGURACIÓN DE FIREBASE AQUÍ REEMPLAZANDO LA LÍNEA SIGUIENTE !!!
             const firebaseConfig = {
-   apiKey: "AIzaSyBa5xLOwdAG8OUP8we0zMpUPtGOh0dlHpc",
+    apiKey: "AIzaSyBa5xLOwdAG8OUP8we0zMpUPtGOh0dlHpc",
     authDomain: "organizador-ooff.firebaseapp.com",
     projectId: "organizador-ooff",
     storageBucket: "organizador-ooff.firebasestorage.app",
@@ -1749,7 +1762,6 @@
     appId: "1:281892698487:web:afcee43fa18ecae0f90972",
     measurementId: "G-GEL64PCPMP"
   };
-
             
             const app = window.firebase.initializeApp(firebaseConfig);
             db = window.firebase.getFirestore(app);
