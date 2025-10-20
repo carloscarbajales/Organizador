@@ -515,16 +515,20 @@
                 </div>
                  <div>
                     <h3 class="text-lg font-bold mb-2" style="color: #25af0f;">4. Gestión de Empleados</h3>
-                    <ul class="list-disc list-inside space-y-1">
-                        <li>Introduce un nombre y haz clic en "Añadir" para crear un nuevo empleado.</li>
-                        <li>Haz clic en la 'X' roja junto a un nombre para eliminar a un empleado.</li>
+                     <ul class="list-disc list-inside space-y-1">
+                        <li><strong>Añadir/Eliminar:</strong> Introduce un nombre y haz clic en "Añadir" para crear un nuevo empleado. Haz clic en la 'X' roja para eliminarlo.</li>
+                        <li><strong>Horas y Vacaciones:</strong> Puedes especificar las horas de trabajo planificadas para el mes y un rango de fechas para las vacaciones.</li>
+                        <li><strong>Guardar Cambios:</strong> ¡Importante! Después de modificar las horas o vacaciones, haz clic en el botón <strong>"Guardar Cambios de Empleados"</strong>.</li>
+                        <li><strong>Asignación de Tareas:</strong> La aplicación no te permitirá asignar tareas a un empleado si la fecha de la tarea coincide con su período de vacaciones.</li>
                     </ul>
                 </div>
                  <div>
                     <h3 class="text-lg font-bold mb-2" style="color: #25af0f;">5. Resumen y Revisiones</h3>
                     <ul class="list-disc list-inside space-y-1">
-                        <li><strong>Resumen por Empleado:</strong> Muestra el tiempo total de tareas asignadas en el mes y el tiempo ya completado.</li>
-                        <li><strong>Revisar Tareas Completadas:</strong> Abre una ventana con un historial de todas las tareas finalizadas, indicando quién la hizo, en qué fecha y el tiempo empleado.</li>
+                        <li><strong>Resumen Total:</strong> Muestra un recuento de todas las tareas (totales, completadas, pendientes) y el tiempo global para la farmacia.</li>
+                        <li><strong>Resumen por Empleado:</strong> Muestra el tiempo total asignado, el completado, el recuento de tareas y el porcentaje de ocupación (teórico y real) sobre sus horas planificadas.</li>
+                        <li><strong>Revisar Tareas Completadas:</strong> Abre una ventana con un historial de todas las tareas finalizadas.</li>
+                        <li><strong>Exportar Informe (CSV):</strong> Descarga una hoja de cálculo con el detalle de todas las tareas del mes visible (respetando los filtros aplicados).</li>
                     </ul>
                 </div>
                  <div>
@@ -1679,7 +1683,7 @@
         // --- INICIALIZACIÓN Y EVENTOS ---
         async function init() {
             // !!! PASO CRÍTICO: PEGA TU CONFIGURACIÓN DE FIREBASE AQUÍ REEMPLAZANDO LA LÍNEA SIGUIENTE !!!
-           const firebaseConfig = {
+            const firebaseConfig = {
     apiKey: "AIzaSyBa5xLOwdAG8OUP8we0zMpUPtGOh0dlHpc",
     authDomain: "organizador-ooff.firebaseapp.com",
     projectId: "organizador-ooff",
