@@ -631,6 +631,7 @@
         let gapiInited = false;
         let gisInited = false;
         let tokenClient;
+        const GOOGLE_CLIENT_ID = "281892698487-hbn20q779mak240gka7af5ltfr09af26.apps.googleusercontent.com";
         const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/tasks/v1/rest';
         const SCOPES = 'https://www.googleapis.com/auth/tasks';
 
@@ -710,8 +711,7 @@
         const disconnectGoogleBtn = document.getElementById('disconnect-google-btn');
         const syncGoogleBtn = document.getElementById('sync-google-btn');
         const googleTaskListsSelect = document.getElementById('google-task-lists');
-        const googleClientIdInput = document.getElementById('google-client-id');
-
+        
         // --- FUNCIONES DE GUARDADO Y SEGURIDAD ---
         const toISODateString = (date) => {
             if (!date) return null;
@@ -1751,23 +1751,26 @@
         // --- INICIALIZACIÓN Y EVENTOS ---
         async function init() {
             // !!! PASO CRÍTICO: PEGA TU CONFIGURACIÓN DE FIREBASE AQUÍ REEMPLAZANDO LA LÍNEA SIGUIENTE !!!
-            const firebaseConfig = {
-              apiKey: "AIzaSyBa5xLOwdAG8OUP8we0zMpUPtGOh0dlHpc",
-              authDomain: "organizador-ooff.firebaseapp.com",
-              projectId: "organizador-ooff",
-              storageBucket: "organizador-ooff.firebasestorage.app",
-              messagingSenderId: "281892698487",
-              appId: "1:281892698487:web:afcee43fa18ecae0f90972",
-              measurementId: "G-GEL64PCPMP"
-            };
+             const firebaseConfig = {
+    apiKey: "AIzaSyBa5xLOwdAG8OUP8we0zMpUPtGOh0dlHpc",
+    authDomain: "organizador-ooff.firebaseapp.com",
+    projectId: "organizador-ooff",
+    storageBucket: "organizador-ooff.firebasestorage.app",
+    messagingSenderId: "281892698487",
+    appId: "1:281892698487:web:afcee43fa18ecae0f90972",
+    measurementId: "G-GEL64PCPMP"
+  };
             
             const app = window.firebase.initializeApp(firebaseConfig);
             db = window.firebase.getFirestore(app);
             auth = window.firebase.getAuth(app);
             
             try {
-                // Para GitHub Pages y otros, usaremos la autenticación anónima.
-                await window.firebase.signInAnonymously(auth);
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await window.firebase.signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await window.firebase.signInAnonymously(auth);
+                }
             } catch (error) {
                 console.error("Error de autenticación en Firebase:", error);
                 loadingScreen.innerHTML = `<p class="text-red-500">Error de autenticación: ${error.message}</p>`;
