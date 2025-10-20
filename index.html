@@ -1741,14 +1741,15 @@
         async function init() {
             // !!! PASO CRÍTICO: PEGA TU CONFIGURACIÓN DE FIREBASE AQUÍ REEMPLAZANDO LA LÍNEA SIGUIENTE !!!
             const firebaseConfig = {
-  apiKey: "AIzaSyBa5xLOwdAG8OUP8we0zMpUPtGOh0dlHpc",
-  authDomain: "organizador-ooff.firebaseapp.com",
-  projectId: "organizador-ooff",
-  storageBucket: "organizador-ooff.firebasestorage.app",
-  messagingSenderId: "281892698487",
-  appId: "1:281892698487:web:afcee43fa18ecae0f90972",
-  measurementId: "G-GEL64PCPMP"
-};
+   apiKey: "AIzaSyBa5xLOwdAG8OUP8we0zMpUPtGOh0dlHpc",
+    authDomain: "organizador-ooff.firebaseapp.com",
+    projectId: "organizador-ooff",
+    storageBucket: "organizador-ooff.firebasestorage.app",
+    messagingSenderId: "281892698487",
+    appId: "1:281892698487:web:afcee43fa18ecae0f90972",
+    measurementId: "G-GEL64PCPMP"
+  };
+
             
             const app = window.firebase.initializeApp(firebaseConfig);
             db = window.firebase.getFirestore(app);
