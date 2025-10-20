@@ -240,6 +240,9 @@
                 <div id="employee-list" class="space-y-2">
                     <!-- Lista de empleados se generará aquí -->
                 </div>
+                 <button id="save-employees-btn" class="mt-4 w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg shadow-sm hover:bg-green-700 transition-colors duration-300">
+                    Guardar Cambios de Empleados
+                </button>
             </div>
             
             <!-- Seguridad -->
@@ -611,6 +614,7 @@
         const addEmployeeForm = document.getElementById('add-employee-form');
         const newEmployeeNameInput = document.getElementById('new-employee-name');
         const employeeListEl = document.getElementById('employee-list');
+        const saveEmployeesBtn = document.getElementById('save-employees-btn');
         // Tareas completadas
         const reviewCompletedBtn = document.getElementById('review-completed-btn');
         const completedTasksModal = document.getElementById('completedTasksModal');
@@ -986,28 +990,51 @@
             employeeListEl.innerHTML = '';
             employees.forEach(emp => {
                 const empEl = document.createElement('div');
-                const color = getEmployeeColor(emp.id);
-                empEl.className = 'flex justify-between items-center bg-gray-100 p-2 rounded-lg text-sm';
+                 const color = getEmployeeColor(emp.id);
+                empEl.className = 'employee-item bg-gray-100 p-2 rounded-lg text-sm';
+                empEl.dataset.employeeId = emp.id;
                 empEl.innerHTML = `
-                    <div class="flex items-center gap-2">
-                        <span class="w-3 h-3 rounded-full ${color.bg} border border-gray-300"></span>
-                        <span>${emp.name}</span>
+                    <div class="flex justify-between items-center mb-2">
+                        <div class="flex items-center gap-2 font-semibold">
+                           <span class="w-3 h-3 rounded-full ${color.bg} border border-gray-300"></span>
+                           <span>${emp.name}</span>
+                        </div>
+                        <button data-id="${emp.id}" class="delete-employee-btn text-red-500 hover:text-red-700 font-bold">X</button>
                     </div>
-                    <button data-id="${emp.id}" class="text-red-500 hover:text-red-700 font-bold">X</button>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                            <label for="planned-hours-${emp.id}" class="block text-gray-500">Horas Planificadas</label>
+                            <input type="number" id="planned-hours-${emp.id}" value="${emp.plannedHours || ''}" class="w-full border-gray-300 rounded-md shadow-sm text-xs p-1">
+                        </div>
+                         <div>
+                            <!-- Placeholder for a summary if needed -->
+                        </div>
+                        <div>
+                            <label for="vacation-start-${emp.id}" class="block text-gray-500">Inicio Vacaciones</label>
+                            <input type="date" id="vacation-start-${emp.id}" value="${emp.vacationStart || ''}" class="w-full border-gray-300 rounded-md shadow-sm text-xs p-1">
+                        </div>
+                        <div>
+                            <label for="vacation-end-${emp.id}" class="block text-gray-500">Fin Vacaciones</label>
+                            <input type="date" id="vacation-end-${emp.id}" value="${emp.vacationEnd || ''}" class="w-full border-gray-300 rounded-md shadow-sm text-xs p-1">
+                        </div>
+                    </div>
                 `;
                 employeeListEl.appendChild(empEl);
             });
 
             const assignedToSelect = document.getElementById('task-assigned-to');
-            assignedToSelect.innerHTML = '<option value="">Sin asignar</option>';
             filterEmployeeSelect.innerHTML = '<option value="all">Todos</option>';
             employees.forEach(emp => {
-                assignedToSelect.innerHTML += `<option value="${emp.id}">${emp.name}</option>`;
                 filterEmployeeSelect.innerHTML += `<option value="${emp.id}">${emp.name}</option>`;
             });
             filterEmployeeSelect.value = filters.employee;
 
-            employeeReportEl.innerHTML = '';
+            // Employee report is now separate
+            renderEmployeeReport();
+        };
+
+        const renderEmployeeReport = () => {
+             employeeReportEl.innerHTML = '';
             employees.forEach(employee => {
                 let totalTime = 0;
                 let completedTime = 0;
@@ -1095,11 +1122,15 @@
                 });
                 
                 const pendingTaskCount = totalTaskCount - completedTaskCount;
+                const plannedMinutes = (employee.plannedHours || 0) * 60;
+                const assignedPercentage = plannedMinutes > 0 ? ((totalTime / plannedMinutes) * 100).toFixed(1) : 0;
+                const completedPercentage = plannedMinutes > 0 ? ((completedTime / plannedMinutes) * 100).toFixed(1) : 0;
+
 
                 employeeReportEl.innerHTML += `
                     <div class="p-3 bg-gray-100 rounded-lg">
                         <p class="font-semibold">${employee.name}</p>
-                        <div class="grid grid-cols-2 gap-x-2 text-sm mt-1">
+                         <div class="grid grid-cols-2 gap-x-2 text-sm mt-1">
                             <div>
                                 <p class="text-gray-600">Pendientes:</p>
                                 <p class="font-bold text-orange-600">${pendingTaskCount}</p>
@@ -1110,8 +1141,18 @@
                             </div>
                         </div>
                         <div class="mt-2 pt-2 border-t">
-                            <p class="text-sm text-gray-600">Tiempo Total: <strong>${formatTime(totalTime)}</strong></p>
-                            <p class="text-sm text-green-700">Tiempo Completado: <strong>${formatTime(completedTime)}</strong></p>
+                             <p class="text-sm text-gray-600">Tiempo Asignado: <strong>${formatTime(totalTime)}</strong> / ${employee.plannedHours || 'N/A'}h</p>
+                             <p class="text-sm text-green-700">Tiempo Completado: <strong>${formatTime(completedTime)}</strong></p>
+                             <div class="grid grid-cols-2 gap-x-2 text-xs mt-2">
+                                <div>
+                                    <p class="text-gray-600">% Teórico Asignado:</p>
+                                    <p class="font-bold">${assignedPercentage}%</p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-600">% Real Completado:</p>
+                                    <p class="font-bold text-green-700">${completedPercentage}%</p>
+                                </div>
+                             </div>
                         </div>
                         <div class="w-full bg-gray-300 rounded-full h-2.5 mt-2">
                             <div class="bg-green-500 h-2.5 rounded-full" style="width: ${totalTime > 0 ? (completedTime / totalTime) * 100 : 0}%"></div>
@@ -1146,11 +1187,27 @@
             const name = newEmployeeNameInput.value.trim();
             if (name) {
                 const newId = employees.length > 0 ? Math.max(...employees.map(emp => emp.id)) + 1 : 1;
-                employees.push({ id: newId, name: name });
+                employees.push({ id: newId, name: name, plannedHours: 0, vacationStart: '', vacationEnd: '' });
                 await savePharmacyData();
                 newEmployeeNameInput.value = '';
             }
         };
+
+        async function handleSaveEmployees() {
+             if (isLocked) { promptForPassword(); return; }
+             const employeeItems = document.querySelectorAll('.employee-item');
+             employeeItems.forEach(item => {
+                const empId = parseInt(item.dataset.employeeId);
+                const employee = employees.find(e => e.id === empId);
+                if(employee) {
+                    employee.plannedHours = parseInt(item.querySelector(`#planned-hours-${empId}`).value) || 0;
+                    employee.vacationStart = item.querySelector(`#vacation-start-${empId}`).value || '';
+                    employee.vacationEnd = item.querySelector(`#vacation-end-${empId}`).value || '';
+                }
+             });
+             await savePharmacyData();
+             showToast('Datos de empleados guardados.', 'success');
+        }
 
         async function handleDeleteEmployee(id) {
             if (isLocked) { promptForPassword(); return; }
@@ -1177,6 +1234,23 @@
             const actualTimeContainer = document.getElementById('actual-time-container');
             const actualTimeInput = document.getElementById('task-actual-time');
             actualTimeContainer.classList.add('hidden'); 
+
+            let taskStartDate = dateString;
+            let taskEndDate = dateString;
+
+            if(task) {
+                if(task.type === 'flexible' || task.type === 'anual') {
+                    taskStartDate = task.startDate;
+                    taskEndDate = task.dueDate;
+                }
+            } else {
+                 const type = document.getElementById('task-type').value;
+                 if (type === 'flexible' || type === 'anual') {
+                    taskStartDate = document.getElementById('task-start-date').value || dateString;
+                    taskEndDate = document.getElementById('task-due-date').value || dateString;
+                 }
+            }
+            populateAvailableEmployees(taskStartDate, taskEndDate);
 
             if (task) { // Editar
                 document.getElementById('task-type').value = task.type;
@@ -1239,6 +1313,20 @@
             taskModal.classList.remove('hidden');
             taskModal.classList.add('flex');
             setTimeout(() => modalContent.classList.remove('scale-95', 'opacity-0'), 50);
+        };
+        
+        const populateAvailableEmployees = (taskStart, taskEnd) => {
+            const assignedToSelect = document.getElementById('task-assigned-to');
+            assignedToSelect.innerHTML = '<option value="">Sin asignar</option>';
+            const availableEmployees = employees.filter(emp => {
+                if (!emp.vacationStart || !emp.vacationEnd) return true; // Available if no vacation set
+                // No overlap if task ends before vacation starts OR task starts after vacation ends
+                const isNotOnVacation = (taskEnd < emp.vacationStart) || (taskStart > emp.vacationEnd);
+                return isNotOnVacation;
+            });
+            availableEmployees.forEach(emp => {
+                assignedToSelect.innerHTML += `<option value="${emp.id}">${emp.name}</option>`;
+            });
         };
 
         const closeModal = (modalEl) => {
@@ -1591,16 +1679,7 @@
         // --- INICIALIZACIÓN Y EVENTOS ---
         async function init() {
             // !!! PASO CRÍTICO: PEGA TU CONFIGURACIÓN DE FIREBASE AQUÍ REEMPLAZANDO LA LÍNEA SIGUIENTE !!!
-           const firebaseConfig = {
-    apiKey: "AIzaSyBa5xLOwdAG8OUP8we0zMpUPtGOh0dlHpc",
-    authDomain: "organizador-ooff.firebaseapp.com",
-    projectId: "organizador-ooff",
-    storageBucket: "organizador-ooff.firebasestorage.app",
-    messagingSenderId: "281892698487",
-    appId: "1:281892698487:web:afcee43fa18ecae0f90972",
-    measurementId: "G-GEL64PCPMP"
-  };
-
+            const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
             
             const app = window.firebase.initializeApp(firebaseConfig);
             db = window.firebase.getFirestore(app);
@@ -1643,10 +1722,11 @@
             // Gestión Empleados
             addEmployeeForm.addEventListener('submit', handleAddNewEmployee);
             employeeListEl.addEventListener('click', (e) => {
-                if (e.target.tagName === 'BUTTON') {
+                if (e.target.classList.contains('delete-employee-btn')) {
                     handleDeleteEmployee(parseInt(e.target.dataset.id));
                 }
             });
+            saveEmployeesBtn.addEventListener('click', handleSaveEmployees);
 
             // Modales y Botones
             document.getElementById('addTaskBtn').addEventListener('click', () => openModal());
