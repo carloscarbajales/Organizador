@@ -25,6 +25,7 @@
             updateDoc
         };
     </script>
+    <script src="https://apis.google.com/js/api.js"></script>
     <style>
         body {
             font-family: 'Nunito', sans-serif;
@@ -256,6 +257,23 @@
                 <h2 class="text-lg font-semibold mb-3 border-b pb-2">Administración</h2>
                 <button id="manage-pharmacies-btn" class="w-full text-sm text-blue-600 hover:underline text-left">Gestionar Farmacias</button>
            </div>
+           
+            <!-- Integración con Google Tasks -->
+            <div id="google-tasks-integration">
+                <h2 class="text-lg font-semibold mb-3 border-b pb-2">Integración con Google</h2>
+                <div id="google-auth-container" class="space-y-2">
+                    <label for="google-client-id" class="text-sm font-medium">Google Client ID:</label>
+                    <input type="text" id="google-client-id" placeholder="Pega tu Client ID aquí" class="w-full border-gray-300 rounded-lg shadow-sm text-sm">
+                    <button id="connect-google-btn" class="w-full bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-sm hover:bg-gray-300">Conectar con Google</button>
+                </div>
+                <div id="google-sync-controls" class="hidden space-y-2 mt-2">
+                     <p class="text-sm font-medium text-green-700">Conectado a Google.</p>
+                    <label for="google-task-lists" class="text-sm font-medium">Lista de Tareas de Google:</label>
+                    <select id="google-task-lists" class="w-full border-gray-300 rounded-lg shadow-sm"></select>
+                    <button id="sync-google-btn" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-sm hover:bg-blue-700 protected-control">Sincronizar Tareas</button>
+                    <button id="disconnect-google-btn" class="w-full text-sm text-red-600 hover:underline">Desconectar</button>
+                </div>
+            </div>
             
         </aside>
 
@@ -549,6 +567,32 @@
                         <li><strong>Gestionar Farmacias:</strong> Permite editar los nombres de las farmacias existentes o añadir nuevas a la lista.</li>
                     </ul>
                 </div>
+                 <div>
+                    <h3 class="text-lg font-bold mb-2" style="color: #25af0f;">8. Integración con Google Tasks</h3>
+                    <ul class="list-disc list-inside space-y-1">
+                         <li><strong>Objetivo:</strong> Sincronizar las tareas de esta aplicación con una de tus listas de Google Tasks para poder verlas en tu móvil o en Google Calendar.</li>
+                        <li><strong>Obtener Client ID (Paso único):</strong>
+                            <ol class="list-decimal list-inside ml-4 space-y-1">
+                                <li>Ve a la <a href="https://console.cloud.google.com/" target="_blank" class="text-blue-600 hover:underline">Consola de Google Cloud</a>.</li>
+                                <li>Crea un nuevo proyecto (o selecciona uno existente).</li>
+                                <li>En el buscador, busca y habilita la **"Google Tasks API"**.</li>
+                                <li>Ve a "APIs y servicios" > "Credenciales".</li>
+                                <li>Haz clic en "Crear credenciales" > "ID de cliente de OAuth".</li>
+                                <li>Selecciona "Aplicación web" como tipo de aplicación.</li>
+                                <li>En "Orígenes de JavaScript autorizados", añade la URL donde está alojada esta aplicación (ej: `https://tu-usuario.github.io`).</li>
+                                <li>Copia el **"ID de cliente"** que se genera.</li>
+                            </ol>
+                        </li>
+                        <li><strong>Conectar en la App:</strong>
+                             <ul class="list-circle list-inside ml-4">
+                                <li>Pega tu "ID de cliente" en el campo correspondiente del panel lateral y haz clic en "Conectar con Google".</li>
+                                <li>Inicia sesión con tu cuenta de Google y concede los permisos solicitados.</li>
+                                <li>Una vez conectado, selecciona de la lista desplegable a qué lista de Google Tasks quieres enviar las tareas.</li>
+                                <li>Haz clic en **"Sincronizar Tareas"**. Esto enviará las tareas del mes actual a Google Tasks (solo en una dirección, de aquí a Google).</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
@@ -573,6 +617,11 @@
         let isAdminSession = false;
         let allPharmacies = [];
         let allPasswords = {};
+        
+        // --- Google API ---
+        let gapiInited = false;
+        let gisInited = false;
+        let tokenClient;
 
         const employeeColorPalette = [
             { bg: 'bg-blue-100', text: 'text-blue-800' },
@@ -643,6 +692,14 @@
         const closeManagePharmaciesModalBtn = document.getElementById('close-manage-pharmacies-modal-btn');
         const addPharmacyForm = document.getElementById('add-pharmacy-form');
         const pharmacyManagementList = document.getElementById('pharmacy-management-list');
+        // Google Tasks
+        const googleAuthContainer = document.getElementById('google-auth-container');
+        const googleSyncControls = document.getElementById('google-sync-controls');
+        const connectGoogleBtn = document.getElementById('connect-google-btn');
+        const disconnectGoogleBtn = document.getElementById('disconnect-google-btn');
+        const syncGoogleBtn = document.getElementById('sync-google-btn');
+        const googleTaskListsSelect = document.getElementById('google-task-lists');
+        const googleClientIdInput = document.getElementById('google-client-id');
 
         // --- FUNCIONES DE GUARDADO Y SEGURIDAD ---
         const toISODateString = (date) => {
@@ -1684,14 +1741,14 @@
         async function init() {
             // !!! PASO CRÍTICO: PEGA TU CONFIGURACIÓN DE FIREBASE AQUÍ REEMPLAZANDO LA LÍNEA SIGUIENTE !!!
             const firebaseConfig = {
-    apiKey: "AIzaSyBa5xLOwdAG8OUP8we0zMpUPtGOh0dlHpc",
-    authDomain: "organizador-ooff.firebaseapp.com",
-    projectId: "organizador-ooff",
-    storageBucket: "organizador-ooff.firebasestorage.app",
-    messagingSenderId: "281892698487",
-    appId: "1:281892698487:web:afcee43fa18ecae0f90972",
-    measurementId: "G-GEL64PCPMP"
-  };
+  apiKey: "AIzaSyBa5xLOwdAG8OUP8we0zMpUPtGOh0dlHpc",
+  authDomain: "organizador-ooff.firebaseapp.com",
+  projectId: "organizador-ooff",
+  storageBucket: "organizador-ooff.firebasestorage.app",
+  messagingSenderId: "281892698487",
+  appId: "1:281892698487:web:afcee43fa18ecae0f90972",
+  measurementId: "G-GEL64PCPMP"
+};
             
             const app = window.firebase.initializeApp(firebaseConfig);
             db = window.firebase.getFirestore(app);
